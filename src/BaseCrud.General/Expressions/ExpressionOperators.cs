@@ -11,7 +11,8 @@ public class ExpressionBuilder<TEntity>
         ExpressionConstraintsEnum constraint,
         object value)
     {
-        var property = Expression.Property(_parameterExpression, propertyName);
+        if (typeof(TEntity).GetFieldOrProperty(propertyName) is null)
+            throw new ArgumentException($"Property {propertyName} not found in {typeof(TEntity).Name}");
 
         var constant = Expression.Constant(value);
 
