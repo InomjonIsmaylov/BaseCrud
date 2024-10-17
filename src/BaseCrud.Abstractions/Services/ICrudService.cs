@@ -15,7 +15,7 @@ namespace BaseCrud.Abstractions.Services;
 ///     <typeparamref name="TDto" />)
 /// </typeparam>
 /// <typeparam name="TKey">Key property type</typeparam>
-public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
+public interface ICrudService<TEntity, TDto, TDtoFull, TKey>
     where TKey : struct, IEquatable<TKey>
     where TEntity : IEntity<TKey>
     where TDto : class, IDataTransferObject<TEntity, TKey>
@@ -36,7 +36,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     Task<QueryResult<TDto>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -54,7 +54,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     Task<TEntity?> GetEntityByIdAsync(
         TKey id,
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -75,7 +75,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     Task<TDtoFull?> GetByIdAsync(
         TKey id,
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -93,7 +93,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     /// <exception cref="OperationCanceledException" />
     Task<IAsyncEnumerable<TEntity>> GetEntityListAsync(
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -109,7 +109,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     /// <exception cref="ArgumentNullException" />
     Task<IAsyncEnumerable<TDto>> GetListAsync(
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -124,7 +124,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     /// <exception cref="OperationCanceledException" />
     Task<IAsyncEnumerable<TDtoFull>> GetFullEntityListAsync(
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -141,7 +141,7 @@ public interface ICrudService<TEntity, TDto, TDtoFull, in TKey>
     Task<bool> DeactivateByIdAsync(
         TKey id,
         IUserProfile userProfile,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

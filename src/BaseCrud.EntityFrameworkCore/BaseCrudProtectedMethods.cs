@@ -49,7 +49,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         IDataTableMetaData dataTableMeta,
         IUserProfile userProfile,
         CancellationToken cancellationToken,
-        Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null)
+        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
     {
         dataTableMeta.ThrowIfInvalid();
 
@@ -58,7 +58,16 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         query = HandleGlobalFilter(dataTableMeta, query);
 
         if (customAction != null)
-            query = await customAction(query, userProfile);
+            query = await customAction(
+                new CrudActionContext<TEntity, TKey>(
+                    query,
+                    userProfile,
+                    DbContext,
+                    Mapper,
+                    dataTableMeta,
+                    cancellationToken
+                )
+            );
 
         int totalCount = await query.CountAsync(cancellationToken);
 

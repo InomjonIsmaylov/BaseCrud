@@ -75,7 +75,16 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
         Console.WriteLine(entity1);
 
-        QueryResult<ModelDto> all = await service.GetAllAsync(metaData, user);
+        QueryResult<ModelDto> all =
+            await service.GetAllAsync(metaData, user, async context =>
+            {
+                context.UserProfile.Fullname = "test";
+
+                return context.Queryable.Select(x => new Model
+                {
+                    Active = x.Active, Age = x.Age
+                });
+            });
         
         Console.WriteLine(all);
     }
