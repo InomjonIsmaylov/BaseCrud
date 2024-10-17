@@ -3,7 +3,7 @@
 public static class DataTableMetaDataExtensions
 {
     /// <exception cref="TableMetaDataInvalidException"></exception>
-    public static void ThrowIfValid(this IDataTableMetaData dataTable)
+    public static void ThrowIfInvalid(this IDataTableMetaData dataTable)
     {
         if (dataTable is null)
             throw new TableMetaDataInvalidException("DataTableMetaData is null");

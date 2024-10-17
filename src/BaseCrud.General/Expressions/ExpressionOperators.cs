@@ -1,4 +1,5 @@
 ﻿using System.Linq.Expressions;
+using AutoMapper.Internal;
 
 namespace BaseCrud.General.Expressions;
 
@@ -14,7 +15,9 @@ public class ExpressionBuilder<TEntity>
         if (typeof(TEntity).GetFieldOrProperty(propertyName) is null)
             throw new ArgumentException($"Property {propertyName} not found in {typeof(TEntity).Name}");
 
-        var constant = Expression.Constant(value);
+        MemberExpression property = Expression.Property(_parameterExpression, propertyName);
+
+        ConstantExpression constant = Expression.Constant(value);
 
         Expression expression = constraint.Name switch
         {
@@ -43,7 +46,7 @@ public class ExpressionBuilder<TEntity>
 
     public Expression<Func<TEntity, object>> BuildSortExpression(string propertyName)
     {
-        var property = Expression.Property(_parameterExpression, propertyName);
+        MemberExpression property = Expression.Property(_parameterExpression, propertyName);
 
         return Expression.Lambda<Func<TEntity, object>>(Expression.Convert(property, typeof(object)), _parameterExpression);
     }

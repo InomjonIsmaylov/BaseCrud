@@ -10,16 +10,16 @@ public static class ExpressionBuilderHelper
         IQueryable<TEntity> queryable,
         IEnumerable<FilterExpressionMetaData> filterExpressionMetaData)
     {
-        var filterExpressionArgs = filterExpressionMetaData as FilterExpressionMetaData[] ?? filterExpressionMetaData.ToArray();
+        FilterExpressionMetaData[] filterExpressionArgs = filterExpressionMetaData as FilterExpressionMetaData[] ?? filterExpressionMetaData.ToArray();
 
         if (filterExpressionArgs.Length == 0)
             return queryable;
 
-        var first = filterExpressionArgs.First();
+        FilterExpressionMetaData first = filterExpressionArgs.First();
 
-        var resultExpression = expressionBuilder.BuildFilterExpression(first.PropertyName, first.Constraint, first.Value);
+        Expression<Func<TEntity, bool>> resultExpression = expressionBuilder.BuildFilterExpression(first.PropertyName, first.Constraint, first.Value);
 
-        var predicate = filterExpressionArgs.Skip(1)
+        Expression<Func<TEntity, bool>> predicate = filterExpressionArgs.Skip(1)
             .Aggregate(
                 resultExpression, (current, filter) =>
                     current.And(
@@ -35,16 +35,16 @@ public static class ExpressionBuilderHelper
         IQueryable<TEntity> query,
         IEnumerable<SortingExpressionMetaData> getSortingExpressionMetaData)
     {
-        var sortingExpressionArgs = getSortingExpressionMetaData as SortingExpressionMetaData[] ?? getSortingExpressionMetaData.ToArray();
+        SortingExpressionMetaData[] sortingExpressionArgs = getSortingExpressionMetaData as SortingExpressionMetaData[] ?? getSortingExpressionMetaData.ToArray();
 
         if (sortingExpressionArgs.Length == 0)
             return query;
 
-        var first = sortingExpressionArgs.First();
+        SortingExpressionMetaData first = sortingExpressionArgs.First();
 
-        var resultExpression = expressionBuilder.BuildSortExpression(first.PropertyName);
+        Expression<Func<TEntity, object>> resultExpression = expressionBuilder.BuildSortExpression(first.PropertyName);
 
-        var sortedQuery = first.Ascending
+        IOrderedQueryable<TEntity> sortedQuery = first.Ascending
             ? query.OrderBy(resultExpression)
             : query.OrderByDescending(resultExpression);
 
@@ -62,7 +62,7 @@ public static class ExpressionBuilderHelper
         this Expression<Func<TEntity, bool>> left,
         Expression<Func<TEntity, bool>> right)
     {
-        var parameter = Expression.Parameter(typeof(TEntity), "e");
+        ParameterExpression parameter = Expression.Parameter(typeof(TEntity), "e");
 
         return Expression.Lambda<Func<TEntity, bool>>(Expression.AndAlso(left.Body, right.Body), parameter);
     }

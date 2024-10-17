@@ -1,6 +1,7 @@
 ﻿using AutoMapper.QueryableExtensions;
 using BaseCrud.Abstractions.Expressions;
 using BaseCrud.EntityFrameworkCore.Extensions;
+using BaseCrud.General.Entities;
 using BaseCrud.General.Expressions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -50,19 +51,18 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         CancellationToken cancellationToken,
         Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null)
     {
-        dataTableMeta.ThrowIfValid();
+        dataTableMeta.ThrowIfInvalid();
 
-        var query = GetQuery(dataTableMeta);
+        IQueryable<TEntity> query = GetQuery(dataTableMeta);
 
         query = HandleGlobalFilter(dataTableMeta, query);
 
-        // ****************  Use filter by role  ****************
         if (customAction != null)
             query = await customAction(query, userProfile);
 
-        var totalCount = await query.CountAsync(cancellationToken);
+        int totalCount = await query.CountAsync(cancellationToken);
 
-        var data = await RetrieveDataAsync(dataTableMeta, query, cancellationToken);
+        List<TDto> data = await RetrieveDataAsync(dataTableMeta, query, cancellationToken);
 
         return (totalCount, data);
     }
@@ -70,7 +70,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     /// <exception cref="ArgumentException" />
     protected IQueryable<TEntity> GetQuery(IDataTableMetaData dataTableMeta)
     {
-        var query = QueryableOfUntrackedActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         query = ExpressionBuilder.BuildFilterExpression(query, dataTableMeta.FilterExpressionMetaData);
 
@@ -86,13 +86,13 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         CancellationToken cancellationToken
     )
     {
-        var paginationMeta = dataTableMeta.PaginationMetaData;
+        PaginationMetaData paginationMeta = dataTableMeta.PaginationMetaData;
 
         query = query
             .Skip(paginationMeta.First)
             .Take(paginationMeta.Rows);
             
-        var queryableOfSelected = HandleSelection(query);
+        IQueryable<TDto> queryableOfSelected = HandleSelection(query);
 
         return queryableOfSelected.ToListAsync(cancellationToken);
     }
@@ -104,7 +104,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         if (!dataTableMeta.GlobalFilterExpressionMetaData.Any())
             return query;
 
-        var globalFilter = typeof(TEntity).Assembly 
+        Type? globalFilter = typeof(TEntity).Assembly 
             .GetTypes()
             .FirstOrDefault(t => typeof(IGlobalFilterExpression<>).IsAssignableFrom(t) && !t.IsInterface);
 
@@ -123,7 +123,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
     protected IQueryable<TDto> HandleSelection(IQueryable<TEntity> query)
     {
-        var selectorType = typeof(TEntity).Assembly 
+        Type? selectorType = typeof(TEntity).Assembly 
             .GetTypes()
             .FirstOrDefault(t => typeof(ISelectExpression<,,>).IsAssignableFrom(t) && !t.IsInterface);
 
@@ -175,7 +175,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     /// <exception cref="OperationCanceledException" />
     protected async Task<bool> HandleSaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        var count = await DbContext.SaveChangesAsync(cancellationToken);
+        int count = await DbContext.SaveChangesAsync(cancellationToken);
 
         return count > 0;
     }
@@ -187,9 +187,9 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     {
         Set.Entry(entity).State = EntityState.Detached;
 
-        var result = Set.Update(entity);
+        EntityEntry<TEntity> result = Set.Update(entity);
 
-        var saved = await HandleSaveChangesAsync(cancellationToken);
+        bool saved = await HandleSaveChangesAsync(cancellationToken);
 
         if (!saved)
             throw new DbUpdateException("Update operation succeeded but database did not change");
@@ -203,9 +203,9 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     /// <exception cref="OperationCanceledException" />
     protected async Task<TEntity> HandleInsertAsync(TEntity mapped, CancellationToken cancellationToken = default)
     {
-        var entry = Set.Add(mapped);
+        EntityEntry<TEntity> entry = Set.Add(mapped);
 
-        var saved = await HandleSaveChangesAsync(cancellationToken);
+        bool saved = await HandleSaveChangesAsync(cancellationToken);
 
         if (!saved)
             throw new DatabaseOperationException("Database Insert operation succeeded " +

@@ -4,21 +4,26 @@ using BaseCrud.General.AutoMappers;
 using BaseCrud.PrimeNg;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Tester;
 
-var builder = Host.CreateApplicationBuilder(args);
+HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>();
 builder.Services.AddScoped<AppDbContext>();
 
 builder.Services.AddAutoMapper(c =>
 {
-    c.AddProfile(new DtoMapperProfile(typeof(Service).Assembly));
+    ILogger logger = LoggerFactory
+        .Create(bb => bb.SetMinimumLevel(LogLevel.Debug).AddConsole())
+        .CreateLogger<DtoMapperProfile>();
+
+    c.AddProfile(new DtoMapperProfile(typeof(Service).Assembly, logger));
 });
 
 builder.Services.AddScoped<IService, Service>();
 
-using var host = builder.Build();
+using IHost host = builder.Build();
 
 
 
@@ -46,7 +51,7 @@ return;
 
 static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTableMetaData metaData)
 {
-    using var serviceScope = hostProvider.CreateScope();
+    using IServiceScope serviceScope = hostProvider.CreateScope();
     var service = serviceScope.ServiceProvider.GetRequiredService<IService>();
 
     var a = new ModelDetailsDto
@@ -64,13 +69,13 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
     try
     {
-        var entity = await service.InsertAsync(b);
+        ModelDetailsDto entity = await service.InsertAsync(b);
 
-        var entity1 = await service.GetByIdAsync(entity.Id, user);
+        ModelDetailsDto? entity1 = await service.GetByIdAsync(entity.Id, user);
 
         Console.WriteLine(entity1);
 
-        var all = await service.GetAllAsync(metaData, user);
+        QueryResult<ModelDto> all = await service.GetAllAsync(metaData, user);
         
         Console.WriteLine(all);
     }

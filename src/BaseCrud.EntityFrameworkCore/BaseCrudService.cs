@@ -1,4 +1,5 @@
 ﻿using BaseCrud.General.Entities;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Query;
 
 namespace BaseCrud.EntityFrameworkCore;
@@ -16,7 +17,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        var (totalCount, data) = await HandleGetAllQueryAsync(dataTableMeta, userProfile, cancellationToken, customAction);
+        (int totalCount, IEnumerable<TDto> data) = await HandleGetAllQueryAsync(dataTableMeta, userProfile, cancellationToken, customAction);
 
         var result = new QueryResult<TDto>
         {
@@ -32,7 +33,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        var query = QueryableOfUntrackedActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(query, userProfile);
@@ -45,12 +46,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        var query = QueryableOfUntrackedActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(query, userProfile);
 
-        var queryableOfSelected = HandleSelection(query);
+        IQueryable<TDto> queryableOfSelected = HandleSelection(query);
 
         
         return queryableOfSelected.AsAsyncEnumerable();
@@ -61,12 +62,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         Func<IQueryable<TEntity>, IUserProfile, Task<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        var query = QueryableOfUntrackedActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(query, userProfile);
 
-        var result = Mapper.ProjectTo<TDtoFull>(query).AsAsyncEnumerable();
+        IAsyncEnumerable<TDtoFull> result = Mapper.ProjectTo<TDtoFull>(query).AsAsyncEnumerable();
         
         //var data = await query.ToListAsync(cancellationToken);
 
@@ -86,12 +87,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         if (id is int intId)
             InvalidIdArgumentException.ThrowIfZero(intId);
 
-        var query = QueryableOfActive;
+        IQueryable<TEntity> query = QueryableOfActive;
 
         if (customAction != null)
             query = await customAction(query, userProfile);
 
-        var result = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
+        TEntity? result = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
 
         return result;
     }
@@ -105,12 +106,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         
         InvalidIdArgumentException.ThrowIfInvalid(id);
 
-        var query = QueryableOfActive;
+        IQueryable<TEntity> query = QueryableOfActive;
 
         if (customAction != null)
             query = await customAction(query, userProfile);
 
-        var entity = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
+        TEntity? entity = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
 
         if (entity is null)
             return null;
@@ -146,7 +147,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     {
         await CheckUpdateValidityAsync(entity.Id, cancellationToken);
 
-        var result = await HandleUpdateAsync(entity, cancellationToken);
+        EntityEntry<TEntity> result = await HandleUpdateAsync(entity, cancellationToken);
 
         return result.Entity;
     }
@@ -157,7 +158,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         await CheckUpdateValidityAsync(mapped.Id, cancellationToken);
 
-        var result = await HandleUpdateAsync(mapped, cancellationToken);
+        EntityEntry<TEntity> result = await HandleUpdateAsync(mapped, cancellationToken);
 
         return Mapper.Map<TDtoFull>(result.Entity);
     }
@@ -232,11 +233,11 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         await CheckUpdateValidityAsync(id, cancellationToken);
 
-        var entity = await Set.FindAsync([id], cancellationToken);
+        TEntity? entity = await Set.FindAsync([id], cancellationToken);
 
         entity!.Active = false;
 
-        var saved = await HandleSaveChangesAsync(cancellationToken);
+        bool saved = await HandleSaveChangesAsync(cancellationToken);
 
         return saved;
     }
