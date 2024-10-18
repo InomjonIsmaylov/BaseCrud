@@ -1,7 +1,7 @@
 ﻿namespace BaseCrud.General.Entities;
 
 /// <summary>
-/// Type used to map Entities of the type <typeparamref name="TEntity"/> to <em>DataTransferObject</em>
+/// Type used to map Entities of the type <typeparamref name="TEntity"/> to <em> [Replace this into implementing type ref] </em>
 /// </summary>
 /// <typeparam name="TEntity">Entity type of the Database</typeparam>
 /// <typeparam name="TKey">Type param of Key property</typeparam>

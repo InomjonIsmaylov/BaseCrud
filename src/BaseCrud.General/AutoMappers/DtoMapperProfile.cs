@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using AutoMapper;
+using AutoMapper.Internal;
 using BaseCrud.General.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -23,7 +24,27 @@ public class DtoMapperProfile : Profile
         {
             try
             {
-                CreateMap(entityType, dto).ReverseMap();
+                bool dtoHasCustomMapping = dto.GetInterfaces().Any(x =>
+                    x.IsGenericType && x.GetGenericTypeDefinition() == typeof(ICustomMappedDto<,>));
+
+                if (dtoHasCustomMapping)
+                {
+                    MethodInfo createMapGenericMethodInfo = GetType().BaseType!.GetMethod("CreateMap", 2, [])!;
+                    
+                    MethodInfo createMapMethodInfo = createMapGenericMethodInfo.MakeGenericMethod(entityType, dto);
+
+                    object mappingExpression = createMapMethodInfo.Invoke(this, [])!;
+                    
+                    dto.GetStaticMethod("MapEntityToDto").Invoke(null, [mappingExpression]);
+
+                    object reverseMappingExpression = mappingExpression.GetType().GetMethod("ReverseMap")!.Invoke(mappingExpression, [])!;
+
+                    dto.GetStaticMethod("MapDtoToEntity").Invoke(null, [reverseMappingExpression]);
+                }
+                else
+                {
+                    CreateMap(entityType, dto).ReverseMap();
+                }
             }
             catch (Exception e)
             {
@@ -33,14 +54,14 @@ public class DtoMapperProfile : Profile
     }
 
     // Generate the method that takes an assembly and returns a list of types that implement IDataTransferObject<>
-    public static IEnumerable<Tuple<Type, Type>> GetIDataTransferObjectsWithGenericType(Assembly assembly)
+    private static IEnumerable<Tuple<Type, Type>> GetIDataTransferObjectsWithGenericType(Assembly assembly)
     {
         return from type in assembly.GetTypes()
-            where !type.IsInterface
-            let interfaces = type.GetInterfaces()
-            from interfaceType in interfaces
-            where interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IDataTransferObject<>)
-            let genericArgument = interfaceType.GetGenericArguments()[0]
-            select Tuple.Create(type, genericArgument);
+               where !type.IsInterface
+               let interfaces = type.GetInterfaces()
+               from interfaceType in interfaces
+               where interfaceType.IsGenericType && interfaceType.GetGenericTypeDefinition() == typeof(IDataTransferObject<>)
+               let genericArgument = interfaceType.GetGenericArguments()[0]
+               select Tuple.Create(type, genericArgument);
     }
 }

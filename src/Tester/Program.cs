@@ -58,7 +58,9 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
     {
         Age = "1",
         Address = "address",
-        Name = "name",
+        Name = "Boby",
+        Surname = "Fischer",
+        Patronymic = "ChessPlayer",
         Email = "email",
         Phone = "phone",
     };
@@ -76,14 +78,16 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
         Console.WriteLine(entity1);
 
         QueryResult<ModelDto> all =
-            await service.GetAllAsync(metaData, user, async context =>
+            await service.GetAllAsync(metaData, user, context =>
             {
-                context.UserProfile.Fullname = "test";
-
-                return context.Queryable.Select(x => new Model
-                {
-                    Active = x.Active, Age = x.Age
-                });
+                return ValueTask.FromResult(
+                    context.Queryable.Select(x => new Model
+                    {
+                        Active = x.Active,
+                        Age = x.Age,
+                        Name = "Some Address"
+                    })
+                );
             });
         
         Console.WriteLine(all);
