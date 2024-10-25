@@ -3,6 +3,7 @@ using BaseCrud.Abstractions.Expressions;
 using BaseCrud.EntityFrameworkCore.Extensions;
 using BaseCrud.General.Entities;
 using BaseCrud.General.Expressions;
+using BaseCrud.General.Extensions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
 namespace BaseCrud.EntityFrameworkCore;
@@ -47,7 +48,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     /// <exception cref="OperationCanceledException" />
     protected async Task<(int totalCount, IEnumerable<TDto> data)> HandleGetAllQueryAsync(
         IDataTableMetaData dataTableMeta,
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         CancellationToken cancellationToken,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
     {
@@ -113,9 +114,8 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         if (!dataTableMeta.GlobalFilterExpressionMetaData.Any())
             return query;
 
-        Type? globalFilter = typeof(TEntity).Assembly 
-            .GetTypes()
-            .FirstOrDefault(t => typeof(IGlobalFilterExpression<>).IsAssignableFrom(t) && !t.IsInterface);
+        Type? globalFilter = typeof(TEntity).Assembly
+            .GetTypeAssignableFromInterface(typeof(IGlobalFilterExpression<,>));
 
         if (globalFilter is null)
             return query;
@@ -132,9 +132,8 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
     protected IQueryable<TDto> HandleSelection(IQueryable<TEntity> query)
     {
-        Type? selectorType = typeof(TEntity).Assembly 
-            .GetTypes()
-            .FirstOrDefault(t => typeof(ISelectExpression<,,>).IsAssignableFrom(t) && !t.IsInterface);
+        Type? selectorType = typeof(TEntity).Assembly
+            .GetTypeAssignableFromInterface(typeof(ISelectExpression<,,>));
 
         if (selectorType is null)
             return query.ProjectTo<TDto>(Mapper.ConfigurationProvider);

@@ -7,13 +7,13 @@ namespace BaseCrud.EntityFrameworkCore;
 public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     : ICrudService<TEntity, TDto, TDtoFull, TKey>, IDisposable
     where TKey : struct, IEquatable<TKey>
-    where TEntity : EntityBase<TKey>
+    where TEntity : class, IEntity<TKey>
     where TDto : class, IDataTransferObject<TEntity, TKey>
     where TDtoFull : class, IDataTransferObject<TEntity, TKey>
 {
     public virtual async Task<QueryResult<TDto>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -30,7 +30,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     }
 
     public virtual async Task<IAsyncEnumerable<TEntity>> GetEntityListAsync(
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -52,7 +52,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     }
 
     public virtual async Task<IAsyncEnumerable<TDto>> GetListAsync(
-        IUserProfile userProfile,
+        IUserProfile<TKey> userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -71,12 +71,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
             );
 
         IQueryable<TDto> queryableOfSelected = HandleSelection(query);
-        
+
         return queryableOfSelected.AsAsyncEnumerable();
     }
 
     public virtual async Task<IAsyncEnumerable<TDtoFull>> GetFullEntityListAsync(
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -95,13 +95,13 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
             );
 
         IAsyncEnumerable<TDtoFull> result = Mapper.ProjectTo<TDtoFull>(query).AsAsyncEnumerable();
-        
+
         return result;
     }
 
     public virtual async Task<TEntity?> GetEntityByIdAsync(
         TKey id,
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -129,7 +129,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
     public virtual async Task<TDtoFull?> GetByIdAsync(
         TKey id,
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
@@ -159,7 +159,10 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return result;
     }
 
-    public virtual async Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public virtual async Task<TEntity> InsertAsync(
+        TEntity entity,
+        IUserProfile<TKey>? userProfile,
+        CancellationToken cancellationToken = default)
     {
         CheckInsertValidity(entity.Id);
 
@@ -168,7 +171,10 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return entity;
     }
 
-    public virtual async Task<TDtoFull> InsertAsync(TDtoFull entity, CancellationToken cancellationToken = default)
+    public virtual async Task<TDtoFull> InsertAsync(
+        TDtoFull entity,
+        IUserProfile<TKey>? userProfile,
+        CancellationToken cancellationToken = default)
     {
         var mapped = Mapper.Map<TEntity>(entity);
 
@@ -181,7 +187,10 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return entity;
     }
 
-    public virtual async Task<TEntity> UpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    public virtual async Task<TEntity> UpdateAsync(
+        TEntity entity,
+        IUserProfile<TKey>? userProfile,
+        CancellationToken cancellationToken = default)
     {
         await CheckUpdateValidityAsync(entity.Id, cancellationToken);
 
@@ -190,7 +199,10 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return result.Entity;
     }
 
-    public virtual async Task<TDtoFull> UpdateAsync(TDtoFull entity, CancellationToken cancellationToken = default)
+    public virtual async Task<TDtoFull> UpdateAsync(
+        TDtoFull entity,
+        IUserProfile<TKey>? userProfile,
+        CancellationToken cancellationToken = default)
     {
         var mapped = Mapper.Map<TEntity>(entity);
 
@@ -204,6 +216,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     public Task<int> PatchUpdateAsync(
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
+        IUserProfile<TKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(predicate, nameof(predicate));
@@ -217,6 +230,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     public Task<int> PatchUpdateAsync(
         TKey id,
         Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
+        IUserProfile<TKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         if (id is int intId)
@@ -233,6 +247,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
+        IUserProfile<TKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(predicate, nameof(predicate));
@@ -249,6 +264,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         TKey id,
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
+        IUserProfile<TKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         if (id is int intId)
@@ -264,7 +280,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
     public virtual async Task<bool> DeactivateByIdAsync(
         TKey id,
-        IUserProfile userProfile,
+        IUserProfile<TKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {

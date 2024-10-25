@@ -1,10 +1,13 @@
 ﻿namespace BaseCrud.Abstractions.Entities;
 
-public interface IUserProfile
+public interface IUserProfile<TKey>
+    where TKey : struct, IEquatable<TKey>
 {
-    int Id { get; set; }
+    TKey Id { get; set; }
 
     string? UserName { get; set; }
 
     string? Fullname { get; set; }
 }
+
+public interface IUserProfile : IUserProfile<int>;

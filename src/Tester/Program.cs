@@ -71,7 +71,7 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
     try
     {
-        ModelDetailsDto entity = await service.InsertAsync(b);
+        ModelDetailsDto entity = await service.InsertAsync(b, user);
 
         ModelDetailsDto? entity1 = await service.GetByIdAsync(entity.Id, user);
 

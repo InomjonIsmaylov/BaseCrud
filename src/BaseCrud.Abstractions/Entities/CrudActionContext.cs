@@ -4,9 +4,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BaseCrud.Abstractions.Entities;
 
-public record CrudActionContext<TEntity, TKey>(
+public record CrudActionContext<TEntity, TKey>
+(
     IQueryable<TEntity> Queryable,
-    IUserProfile UserProfile,
+    IUserProfile<TKey>? UserProfile,
     DbContext DbContext,
     IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
@@ -17,10 +18,10 @@ public record CrudActionContext<TEntity, TKey>(
 
 public record CrudActionContext<TEntity>(
     IQueryable<TEntity> Queryable,
-    IUserProfile UserProfile,
+    IUserProfile<int>? UserProfile,
     DbContext DbContext,
     IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
-    CancellationToken CancellationToken)
-    : CrudActionContext<TEntity, int>(Queryable, UserProfile, DbContext, Mapper, DataTableMetaData, CancellationToken)
+    CancellationToken CancellationToken
+) : CrudActionContext<TEntity, int>(Queryable, UserProfile, DbContext, Mapper, DataTableMetaData, CancellationToken)
     where TEntity : IEntity<int>;

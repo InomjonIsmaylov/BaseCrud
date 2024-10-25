@@ -16,6 +16,6 @@ public abstract class BaseCrudService<TEntity, TDto, TDtoFull>
         // Implementing Base Interface
         ICrudService<TEntity, TDto, TDtoFull>
     // Generic types annotations
-    where TEntity : EntityBase
+    where TEntity : IEntity
     where TDto : class, IDataTransferObject<TEntity>
     where TDtoFull : class, IDataTransferObject<TEntity>;
