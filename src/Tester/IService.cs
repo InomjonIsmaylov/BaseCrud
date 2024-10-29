@@ -1,8 +1,5 @@
-﻿using BaseCrud.Abstractions.Services;
+﻿using BaseCrud.EntityFrameworkCore.Services;
 
 namespace Tester;
 
-public interface IService : ICrudService<Model, ModelDto, ModelDetailsDto>
-{
-
-}
+public interface IService : IEfCrudService<Model, ModelDto, ModelDetailsDto>;

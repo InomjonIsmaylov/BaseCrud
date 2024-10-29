@@ -1,27 +1,31 @@
 ﻿using AutoMapper;
-using BaseCrud.General.Entities;
-using Microsoft.EntityFrameworkCore;
 
 namespace BaseCrud.Abstractions.Entities;
 
-public record CrudActionContext<TEntity, TKey>
-(
+public record CrudActionContext<TEntity, TKey, TUserKey>(
     IQueryable<TEntity> Queryable,
-    IUserProfile<TKey>? UserProfile,
-    DbContext DbContext,
+    IUserProfile<TUserKey>? UserProfile,
     IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
     CancellationToken CancellationToken
 )
     where TKey : struct, IEquatable<TKey>
-    where TEntity : IEntity<TKey>;
+    where TEntity : IEntity<TKey>
+    where TUserKey : struct, IEquatable<TUserKey>;
 
-public record CrudActionContext<TEntity>(
+public record CrudActionContext<TEntity, TUserKey>(
     IQueryable<TEntity> Queryable,
-    IUserProfile<int>? UserProfile,
-    DbContext DbContext,
+    IUserProfile<TUserKey>? UserProfile,
     IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
     CancellationToken CancellationToken
-) : CrudActionContext<TEntity, int>(Queryable, UserProfile, DbContext, Mapper, DataTableMetaData, CancellationToken)
-    where TEntity : IEntity<int>;
+)
+    : CrudActionContext<TEntity, int, TUserKey>(
+        Queryable,
+        UserProfile,
+        Mapper,
+        DataTableMetaData,
+        CancellationToken
+    )
+    where TEntity : IEntity<int>
+    where TUserKey : struct, IEquatable<TUserKey>;

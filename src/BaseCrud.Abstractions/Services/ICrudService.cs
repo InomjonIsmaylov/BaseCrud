@@ -1,7 +1,4 @@
-﻿using BaseCrud.General.Entities;
-using BaseCrud.General.Exceptions;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query;
+﻿using BaseCrud.ServiceResults;
 
 namespace BaseCrud.Abstractions.Services;
 
@@ -15,263 +12,181 @@ namespace BaseCrud.Abstractions.Services;
 ///     <typeparamref name="TDto" />)
 /// </typeparam>
 /// <typeparam name="TKey">Key property type</typeparam>
-public interface ICrudService<TEntity, TDto, TDtoFull, TKey>
+/// <typeparam name="TUserKey">
+///     Type of the User (<see cref="IUserProfile{T}"/>) key value
+///     (e.g. <see cref="Guid"/>, <see cref="int"/>, <see cref="long"/> ...)
+/// </typeparam>
+public interface ICrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     where TKey : struct, IEquatable<TKey>
     where TEntity : IEntity<TKey>
     where TDto : class, IDataTransferObject<TEntity, TKey>
     where TDtoFull : class, IDataTransferObject<TEntity, TKey>
+    where TUserKey : struct, IEquatable<TUserKey>
 {
     /// <summary>
     ///     Gets all entities by executing query to database table and maps entities to <typeparamref name="TDto" />
     /// </summary>
     /// <typeparam name="TDto">Dto to be mapper</typeparam>
-    /// <param name="dataTableMeta"><see cref="IDataTableMetaData" /> of PrimeNG Filters</param>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="dataTableMeta">Meta data as <see cref="IDataTableMetaData" /></param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see cref="QueryResult{TDto}" /> of entities </returns>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="TableMetaDataInvalidException" />
+    /// <returns>
+    ///     <see cref="QueryResult{TDto}" /> of entities, wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<QueryResult<TDto>> GetAllAsync(
+    Task<ServiceResult<QueryResult<TDto>>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Gets the first entity by executing query to database table
     /// </summary>
     /// <param name="id">The id of the entity</param>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns>The first entity or <see langword="null" /> taken by executing query to database table </returns>
-    /// <exception cref="ArgumentException" />
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="InvalidIdArgumentException" />
+    /// <returns>
+    ///     The first entity or <see langword="null" /> taken by executing query to database table,
+    ///     wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<TEntity?> GetEntityByIdAsync(
+    Task<ServiceResult<TEntity?>> GetEntityByIdAsync(
         TKey id,
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Gets the first entity by executing query to database table and maps to <typeparamref name="TDto" />
     /// </summary>
-    /// <param name="id">id of the Entity</param>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="id">PK of the Entity</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
     /// <returns>
     ///     The first entity mapped as <typeparamref name="TDto" /> or <see langword="null" /> taken by executing query to
-    ///     database table
+    ///     database table, wrapped with <see cref="ServiceResult{T}"/>
     /// </returns>
-    /// <exception cref="ArgumentException" />
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="InvalidIdArgumentException" />
     /// <exception cref="OperationCanceledException" />
-    Task<TDtoFull?> GetByIdAsync(
+    Task<ServiceResult<TDtoFull?>> GetByIdAsync(
         TKey id,
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Gets a <see cref="List{TEntity}" /> by executing query to database table
+    ///     Gets the <see cref="IAsyncEnumerable{TEntity}" /> of <typeparamref name="TEntity"/> by executing query to database table
     /// </summary>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
     /// <returns>
-    ///     <see cref="List{TEntity}" />
+    ///     <see cref="IAsyncEnumerable{TEntity}" /> of <typeparamref name="TEntity"/>,
+    ///     wrapped with <see cref="ServiceResult{T}"/>
     /// </returns>
-    /// <exception cref="ArgumentException" />
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="InvalidIdArgumentException" />
     /// <exception cref="OperationCanceledException" />
-    Task<IAsyncEnumerable<TEntity>> GetEntityListAsync(
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    Task<ServiceResult<IAsyncEnumerable<TEntity>>> GetEntityListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Gets a <see cref="List{TDto}" /> by executing query to database table
+    ///     Gets the <see cref="IAsyncEnumerable{TDto}" /> of <typeparamref name="TDto"/> by executing query to database table
     /// </summary>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
     /// <returns>
-    ///     <see cref="List{TDto}" />
+    ///     <see cref="IAsyncEnumerable{TDto}" />, wrapped with <see cref="ServiceResult{T}"/>
     /// </returns>
     /// <exception cref="OperationCanceledException" />
-    /// <exception cref="ArgumentNullException" />
-    Task<IAsyncEnumerable<TDto>> GetListAsync(
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    Task<ServiceResult<IAsyncEnumerable<TDto>>> GetListAsync(
+        IUserProfile<TUserKey> userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Gets a <see cref="List{TDtoFull}" /> by executing query to database table
+    ///     Gets the <see cref="IAsyncEnumerable{TDtoFull}" /> of <typeparamref name="TDtoFull"/> by executing query to database table
     /// </summary>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
     /// <returns>
-    ///     <see cref="List{TDtoFull}" />
+    ///     <see cref="IAsyncEnumerable{TDtoFull}" /> of <typeparamref name="TDtoFull"/>,
+    ///     wrapped with <see cref="ServiceResult{T}"/>
     /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<IAsyncEnumerable<TDtoFull>> GetFullEntityListAsync(
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    Task<ServiceResult<IAsyncEnumerable<TDtoFull>>> GetFullEntityListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Sets the value of the <see cref="IEntity.Active" /> property of <typeparamref name="TEntity" /> to
-    ///     <see langword="false" /> and saves to the Database
+    ///     Sets the value of the <strong><see cref="IEntity{TKey}.Active" /></strong> property of
+    ///     <typeparamref name="TEntity" /> to <see langword="false" /> and saves to the Database
     /// </summary>
-    /// <param name="id">id of the Entity</param>
-    /// <param name="userProfile"><see cref="IUserProfile" /> value</param>
+    /// <param name="id">PK of the Entity</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="customAction">Additional custom action to perform over query</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see langword="true" /> if entity has been saved successfully</returns>
-    /// <exception cref="InvalidIdArgumentException" />
+    /// <returns>
+    ///     operation result as <see cref="ServiceResult"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<bool> DeactivateByIdAsync(
+    Task<ServiceResult> DeactivateByIdAsync(
         TKey id,
-        IUserProfile userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Insert
-    ///     <param name="entity"></param>
-    ///     to the database
+    ///     Insert <paramref name="entity" /> to the database
     /// </summary>
     /// <param name="entity">Entity to insert</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see langword="true" /> if entity has been saved successfully</returns>
-    /// <exception cref="DatabaseOperationException" />
+    /// <returns>
+    ///     <paramref name="entity"/>, with Primary Key value set, wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<TEntity> InsertAsync(TEntity entity, CancellationToken cancellationToken = default);
+    Task<ServiceResult<TEntity>> InsertAsync(TEntity entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Insert
-    ///     <param name="entity"></param>
-    ///     to the database
+    ///     Insert <paramref name="entity" /> to the database
     /// </summary>
     /// <param name="entity">Entity to insert</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see langword="true" /> if entity has been saved successfully</returns>
-    /// <exception cref="DatabaseOperationException" />
+    /// <returns>
+    ///     <paramref name="entity"/>, with Primary Key value set, wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<TDtoFull> InsertAsync(TDtoFull entity, CancellationToken cancellationToken = default);
+    Task<ServiceResult<TDtoFull>> InsertAsync(TDtoFull entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Update
-    ///     <param name="entity"></param>
-    ///     in the database
+    ///     Update <paramref name="entity"/> in the database
     /// </summary>
     /// <param name="entity">Entity to update</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see langword="true" /> if entity has been saved successfully</returns>
-    /// <exception cref="InvalidIdArgumentException" />
-    /// <exception cref="DatabaseOperationException" />
+    /// <returns>
+    ///     updated <paramref name="entity"/>, wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<TEntity> UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
+    Task<ServiceResult<TEntity>> UpdateAsync(TEntity entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Update
-    ///     <param name="entity"></param>
-    ///     in the database
+    ///     Update <paramref name="entity"/> in the database
     /// </summary>
     /// <param name="entity">Entity's Data Transfer Object</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}" /> value or <see langword="null"/> when user is unauthorized</param>
     /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns><see langword="true" /> if entity has been saved successfully</returns>
-    /// <exception cref="InvalidIdArgumentException" />
-    /// <exception cref="DatabaseOperationException" />
+    /// <returns>
+    ///     updated <paramref name="entity"/>, wrapped with <see cref="ServiceResult{T}"/>
+    /// </returns>
     /// <exception cref="OperationCanceledException" />
-    Task<TDtoFull> UpdateAsync(TDtoFull entity, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    ///     Partially update <typeparamref name="TEntity" /> in the database or bulk update <typeparamref name="TEntity" /> in
-    ///     the database
-    /// </summary>
-    /// <param name="predicate">A function to test each element for a condition.</param>
-    /// <param name="setPropertyCalls">A function to set the property value.</param>
-    /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns>The number of entries updated in the database.</returns>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="OperationCanceledException" />
-    Task<int> PatchUpdateAsync(
-        Expression<Func<TEntity, bool>> predicate,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    ///     Partially update <typeparamref name="TEntity" /> in the database or bulk update <typeparamref name="TEntity" /> in
-    ///     the database
-    /// </summary>
-    /// <param name="id">The id of the <typeparamref name="TEntity" /> to update.</param>
-    /// <param name="setPropertyCalls">A function to set the property value.</param>
-    /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns>The number of entries updated in the database.</returns>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="InvalidIdArgumentException" />
-    /// <exception cref="OperationCanceledException" />
-    Task<int> PatchUpdateAsync(
-        TKey id,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    ///     Partially update <typeparamref name="TEntity" /> in the database or bulk update <typeparamref name="TEntity" /> in
-    ///     the database
-    /// </summary>
-    /// <param name="predicate">A function to test each element for a condition.</param>
-    /// <param name="selector">
-    ///     A selector to create projectile to db entity <typeparamref name="TResult" /> from main entity
-    ///     <typeparamref name="TEntity" />
-    /// </param>
-    /// <param name="setPropertyCalls">A function to set the property value.</param>
-    /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns>The number of entries updated in the database.</returns>
-    /// <remarks>
-    ///     Use this method to update <see cref="OwnedAttribute" /> properties of <typeparamref name="TEntity" /> in the
-    ///     database or bulk update
-    ///     <typeparamref name="TEntity" /> in the database
-    /// </remarks>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="OperationCanceledException" />
-    Task<int> PatchUpdateAsync<TResult>(
-        Expression<Func<TEntity, bool>> predicate,
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    ///     Partially update <typeparamref name="TEntity" /> in the database or bulk update <typeparamref name="TEntity" /> in
-    ///     the database
-    /// </summary>
-    /// <param name="id">The id of the <typeparamref name="TEntity" /> to update.</param>
-    /// <param name="selector">
-    ///     A selector to create projectile to db entity <typeparamref name="TResult" /> from main entity
-    ///     <typeparamref name="TEntity" />
-    /// </param>
-    /// <param name="setPropertyCalls">A function to set the property value.</param>
-    /// <param name="cancellationToken">Token to cancel long execution</param>
-    /// <returns>The number of entries updated in the database.</returns>
-    /// <remarks>
-    ///     Use this method to update <see cref="OwnedAttribute" /> properties of <typeparamref name="TEntity" /> in the
-    ///     database or bulk update
-    ///     <typeparamref name="TEntity" /> in the database
-    /// </remarks>
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="OperationCanceledException" />
-    Task<int> PatchUpdateAsync<TResult>(
-        TKey id,
-        Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
-        CancellationToken cancellationToken = default);
+    Task<ServiceResult<TDtoFull>> UpdateAsync(TDtoFull entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
 }

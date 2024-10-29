@@ -1,24 +1,31 @@
-﻿using BaseCrud.General.Entities;
+﻿using BaseCrud.EntityFrameworkCore.Services;
+using BaseCrud.Errors;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Query;
 
 namespace BaseCrud.EntityFrameworkCore;
 
-public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
-    : ICrudService<TEntity, TDto, TDtoFull, TKey>, IDisposable
-    where TKey : struct, IEquatable<TKey>
+public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
+    : IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>, IDisposable
     where TEntity : class, IEntity<TKey>
     where TDto : class, IDataTransferObject<TEntity, TKey>
     where TDtoFull : class, IDataTransferObject<TEntity, TKey>
+    where TKey : struct, IEquatable<TKey>
+    where TUserKey : struct, IEquatable<TUserKey>
 {
-    public virtual async Task<QueryResult<TDto>> GetAllAsync(
+    public virtual async Task<ServiceResult<QueryResult<TDto>>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        (int totalCount, IEnumerable<TDto> data) =
+        ServiceResult<(int totalCount, IEnumerable<TDto> data)> queryResult =
             await HandleGetAllQueryAsync(dataTableMeta, userProfile, cancellationToken, customAction);
+
+        if (!queryResult.IsSuccess)
+            return ServiceResult.FromFailed(queryResult).ToType<QueryResult<TDto>>();
+
+        (int totalCount, IEnumerable<TDto> data) = queryResult.Result;
 
         var result = new QueryResult<TDto>
         {
@@ -29,41 +36,39 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return result;
     }
 
-    public virtual async Task<IAsyncEnumerable<TEntity>> GetEntityListAsync(
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    public virtual async Task<ServiceResult<IAsyncEnumerable<TEntity>>> GetEntityListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
             );
 
-        return query.AsAsyncEnumerable();
+        return Ok(query.AsAsyncEnumerable());
     }
 
-    public virtual async Task<IAsyncEnumerable<TDto>> GetListAsync(
-        IUserProfile<TKey> userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    public virtual async Task<ServiceResult<IAsyncEnumerable<TDto>>> GetListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     DataTableMetaData: null,
                     cancellationToken
@@ -72,22 +77,21 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         IQueryable<TDto> queryableOfSelected = HandleSelection(query);
 
-        return queryableOfSelected.AsAsyncEnumerable();
+        return Ok(queryableOfSelected.AsAsyncEnumerable());
     }
 
-    public virtual async Task<IAsyncEnumerable<TDtoFull>> GetFullEntityListAsync(
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    public virtual async Task<ServiceResult<IAsyncEnumerable<TDtoFull>>> GetFullEntityListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     DataTableMetaData: null,
                     cancellationToken
@@ -96,26 +100,25 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         IAsyncEnumerable<TDtoFull> result = Mapper.ProjectTo<TDtoFull>(query).AsAsyncEnumerable();
 
-        return result;
+        return Ok(result);
     }
 
-    public virtual async Task<TEntity?> GetEntityByIdAsync(
+    public virtual async Task<ServiceResult<TEntity?>> GetEntityByIdAsync(
         TKey id,
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
         if (id is int intId)
-            InvalidIdArgumentException.ThrowIfZero(intId);
+            return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
-        IQueryable<TEntity> query = QueryableOfActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     DataTableMetaData: null,
                     cancellationToken
@@ -127,22 +130,22 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return result;
     }
 
-    public virtual async Task<TDtoFull?> GetByIdAsync(
+    public virtual async Task<ServiceResult<TDtoFull?>> GetByIdAsync(
         TKey id,
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        InvalidIdArgumentException.ThrowIfInvalid(id);
+        if (id is int intId)
+            return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
-        IQueryable<TEntity> query = QueryableOfActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     DataTableMetaData: null,
                     cancellationToken
@@ -152,139 +155,179 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         TEntity? entity = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
 
         if (entity is null)
-            return null;
+            return NotFound(new NotFoundServiceError());
 
         var result = Mapper.Map<TDtoFull>(entity);
 
         return result;
     }
 
-    public virtual async Task<TEntity> InsertAsync(
+    public virtual async Task<ServiceResult<TEntity>> InsertAsync(
         TEntity entity,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        CheckInsertValidity(entity.Id);
+        ServiceResult validationResult = CheckInsertValidity(entity.Id);
 
-        entity = await HandleInsertAsync(entity, cancellationToken);
+        if (!validationResult.IsSuccess)
+            return validationResult;
 
-        return entity;
+        ServiceResult<TEntity> insertResult = await HandleInsertAsync(entity, cancellationToken);
+
+        if (!insertResult.IsSuccess)
+            return insertResult;
+
+        return insertResult.Result;
     }
 
-    public virtual async Task<TDtoFull> InsertAsync(
+    public virtual async Task<ServiceResult<TDtoFull>> InsertAsync(
         TDtoFull entity,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         var mapped = Mapper.Map<TEntity>(entity);
 
-        CheckInsertValidity(mapped.Id);
+        ServiceResult validationResult = CheckInsertValidity(mapped.Id);
 
-        mapped = await HandleInsertAsync(mapped, cancellationToken);
+        if (!validationResult.IsSuccess)
+            return validationResult;
+        
+        ServiceResult<TEntity> insertResult = await HandleInsertAsync(mapped, cancellationToken);
 
-        entity = Mapper.Map<TDtoFull>(mapped);
+        if (!insertResult.IsSuccess)
+            return ServiceResult.FromFailed(insertResult).ToType<TDtoFull>();
 
-        return entity;
+        var dto = Mapper.Map<TDtoFull>(insertResult.Result);
+
+        return dto;
     }
 
-    public virtual async Task<TEntity> UpdateAsync(
+    public virtual async Task<ServiceResult<TEntity>> UpdateAsync(
         TEntity entity,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        await CheckUpdateValidityAsync(entity.Id, cancellationToken);
+        ServiceResult validationResult = await CheckUpdateValidityAsync(entity.Id, cancellationToken);
 
-        EntityEntry<TEntity> result = await HandleUpdateAsync(entity, cancellationToken);
+        if (!validationResult.IsSuccess)
+            return validationResult;
+
+        ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(entity, cancellationToken);
+
+        if (!updateResult.IsSuccess)
+            return ServiceResult.FromFailed(updateResult).ToType<TEntity>();
+
+        EntityEntry<TEntity> result = updateResult.Result!;
 
         return result.Entity;
     }
 
-    public virtual async Task<TDtoFull> UpdateAsync(
+    public virtual async Task<ServiceResult<TDtoFull>> UpdateAsync(
         TDtoFull entity,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
         var mapped = Mapper.Map<TEntity>(entity);
 
-        await CheckUpdateValidityAsync(mapped.Id, cancellationToken);
+        ServiceResult validationResult = await CheckUpdateValidityAsync(mapped.Id, cancellationToken);
 
-        EntityEntry<TEntity> result = await HandleUpdateAsync(mapped, cancellationToken);
+        if (!validationResult.IsSuccess)
+            return validationResult;
+
+        ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(mapped, cancellationToken);
+
+        if (!updateResult.IsSuccess)
+            return ServiceResult.FromFailed(updateResult).ToType<TDtoFull>();
+
+        EntityEntry<TEntity> result = updateResult.Result!;
 
         return Mapper.Map<TDtoFull>(result.Entity);
     }
 
-    public Task<int> PatchUpdateAsync(
+    public async Task<ServiceResult<int>> PatchUpdateAsync(
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(predicate, nameof(predicate));
-        ArgumentNullException.ThrowIfNull(setPropertyCalls, nameof(setPropertyCalls));
-
-        return Set
+        return await Set
             .Where(predicate)
             .ExecuteUpdateAsync(setPropertyCalls, cancellationToken);
     }
 
-    public Task<int> PatchUpdateAsync(
+    public async Task<ServiceResult<TDtoFull>> PatchUpdateAsync(
         TKey id,
         Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        if (id is int intId)
-            InvalidIdArgumentException.ThrowIfZero(intId);
+        ServiceResult validationResult = await CheckUpdateValidityAsync(id, cancellationToken);
+
+        if (!validationResult.IsSuccess)
+            return validationResult;
 
         ArgumentNullException.ThrowIfNull(setPropertyCalls, nameof(setPropertyCalls));
 
-        return Set
+        int result = await Set
             .Where(x => x.Id.Equals(id))
             .ExecuteUpdateAsync(setPropertyCalls, cancellationToken);
+
+        if (result == 0)
+            return InternalServerError(new DatabaseUpdateError());
+
+        TEntity entity = (await Set.FindAsync([id], cancellationToken))!;
+
+        return Mapper.Map<TDtoFull>(entity);
     }
 
-    public Task<int> PatchUpdateAsync<TResult>(
+    public async Task<ServiceResult<int>> PatchUpdateAsync<TResult>(
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(predicate, nameof(predicate));
-        ArgumentNullException.ThrowIfNull(selector, nameof(selector));
-        ArgumentNullException.ThrowIfNull(setPropertyCalls, nameof(setPropertyCalls));
-
-        return Set
+        return await Set
             .Where(predicate)
             .Select(selector)
             .ExecuteUpdateAsync(setPropertyCalls, cancellationToken);
     }
 
-    public Task<int> PatchUpdateAsync<TResult>(
+    public async Task<ServiceResult<TDtoFull>> PatchUpdateAsync<TResult>(
         TKey id,
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        if (id is int intId)
-            InvalidIdArgumentException.ThrowIfZero(intId);
-        ArgumentNullException.ThrowIfNull(selector, nameof(selector));
-        ArgumentNullException.ThrowIfNull(setPropertyCalls, nameof(setPropertyCalls));
+        ServiceResult validationResult = await CheckUpdateValidityAsync(id, cancellationToken);
 
-        return Set
+        if (!validationResult.IsSuccess)
+            return validationResult;
+
+        int result = await Set
             .Where(x => x.Id.Equals(id))
             .Select(selector)
             .ExecuteUpdateAsync(setPropertyCalls, cancellationToken);
+
+        if (result == 0)
+            return InternalServerError(new DatabaseUpdateError());
+
+        TEntity entity = (await Set.FindAsync([id], cancellationToken))!;
+
+        return Mapper.Map<TDtoFull>(entity);
     }
 
-    public virtual async Task<bool> DeactivateByIdAsync(
+    public async Task<ServiceResult> DeactivateByIdAsync(
         TKey id,
-        IUserProfile<TKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        await CheckUpdateValidityAsync(id, cancellationToken);
+        ServiceResult validationResult = await CheckUpdateValidityAsync(id, cancellationToken);
+
+        if (!validationResult.IsSuccess)
+            return validationResult;
 
         TEntity? entity = await Set.FindAsync([id], cancellationToken);
 
@@ -292,6 +335,6 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         bool saved = await HandleSaveChangesAsync(cancellationToken);
 
-        return saved;
+        return saved ? NoContent() : BadRequest();
     }
 }

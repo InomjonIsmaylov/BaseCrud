@@ -1,4 +1,4 @@
-﻿using BaseCrud.General.Expressions;
+﻿using BaseCrud.Expressions;
 
 namespace BaseCrud.PrimeNg;
 

@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 using AutoMapper;
-using BaseCrud.General.Entities;
+using BaseCrud.Entities;
 
 namespace Tester;
 

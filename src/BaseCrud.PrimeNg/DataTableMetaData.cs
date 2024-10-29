@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 using BaseCrud.Abstractions.Entities;
-using BaseCrud.General.Entities;
+using BaseCrud.Entities;
 
 namespace BaseCrud.PrimeNg;
 

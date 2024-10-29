@@ -5,13 +5,13 @@ VisualStudioVersion = 17.9.34728.123
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud.Abstractions", "BaseCrud.Abstractions\BaseCrud.Abstractions.csproj", "{C5B71D59-7EA8-4305-B5A6-953C32C18895}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud.General", "BaseCrud.General\BaseCrud.General.csproj", "{DD0198DD-3122-4473-85D1-C85F028FBEA9}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud.PrimeNg", "BaseCrud.PrimeNg\BaseCrud.PrimeNg.csproj", "{29EDF30A-1674-47F9-AE61-F3225072CC63}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tester", "Tester\Tester.csproj", "{EFFDCA64-FB98-4EB6-A68D-394DEEB2225B}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud.EntityFrameworkCore", "BaseCrud.EntityFrameworkCore\BaseCrud.EntityFrameworkCore.csproj", "{157E97E3-5A49-47B2-A5F6-7287B7E5D773}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud", "BaseCrud\BaseCrud.csproj", "{4A4C89E9-22FE-4297-9CBB-7616B0CAAAD0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,10 +23,6 @@ Global
 		{C5B71D59-7EA8-4305-B5A6-953C32C18895}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C5B71D59-7EA8-4305-B5A6-953C32C18895}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C5B71D59-7EA8-4305-B5A6-953C32C18895}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DD0198DD-3122-4473-85D1-C85F028FBEA9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DD0198DD-3122-4473-85D1-C85F028FBEA9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DD0198DD-3122-4473-85D1-C85F028FBEA9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DD0198DD-3122-4473-85D1-C85F028FBEA9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{29EDF30A-1674-47F9-AE61-F3225072CC63}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{29EDF30A-1674-47F9-AE61-F3225072CC63}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{29EDF30A-1674-47F9-AE61-F3225072CC63}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -39,6 +35,10 @@ Global
 		{157E97E3-5A49-47B2-A5F6-7287B7E5D773}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{157E97E3-5A49-47B2-A5F6-7287B7E5D773}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{157E97E3-5A49-47B2-A5F6-7287B7E5D773}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4A4C89E9-22FE-4297-9CBB-7616B0CAAAD0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4A4C89E9-22FE-4297-9CBB-7616B0CAAAD0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4A4C89E9-22FE-4297-9CBB-7616B0CAAAD0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4A4C89E9-22FE-4297-9CBB-7616B0CAAAD0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

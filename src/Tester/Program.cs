@@ -1,7 +1,10 @@
-﻿using System.Text.Json;
+﻿using System.Reflection;
+using System.Text.Json;
+using BaseCrud;
+using BaseCrud.Abstractions;
 using BaseCrud.Abstractions.Entities;
-using BaseCrud.General.AutoMappers;
 using BaseCrud.PrimeNg;
+using BaseCrud.ServiceResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -12,36 +15,28 @@ HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddDbContext<AppDbContext>();
 builder.Services.AddScoped<AppDbContext>();
 
-builder.Services.AddAutoMapper(c =>
-{
-    ILogger logger = LoggerFactory
-        .Create(bb => bb.SetMinimumLevel(LogLevel.Debug).AddConsole())
-        .CreateLogger<DtoMapperProfile>();
+builder.Logging.SetMinimumLevel(LogLevel.Debug).AddConsole();
 
-    c.AddProfile(new DtoMapperProfile(typeof(Service).Assembly, logger));
-});
+builder.Services.AddBaseCrudService(
+    new BaseCrudServiceOptions([Assembly.GetExecutingAssembly()])
+);
 
-builder.Services.AddScoped<IService, Service>();
+//builder.Services.AddScoped<IService, Service>();
 
 using IHost host = builder.Build();
 
+const string metaJson = """
+                        {
+                          "first": 0,
+                          "rows": 10,
+                          "sortField": "id",
+                          "sortOrder": 1,
+                          "filters": {},
+                          "globalFilter": null
+                        }
+                        """;
 
-
-
-
-
-const string b = """
-                 {
-                   "first": 0,
-                   "rows": 10,
-                   "sortField": "id",
-                   "sortOrder": 1,
-                   "filters": {},
-                   "globalFilter": null
-                 }
-                 """;
-
-var m = JsonSerializer.Deserialize<DataTableMetaData>(b)!;
+var m = JsonSerializer.Deserialize<DataTableMetaData>(metaJson)!;
 
 await PlayGroundWithDiAsync(host.Services, m);
 
@@ -52,7 +47,10 @@ return;
 static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTableMetaData metaData)
 {
     using IServiceScope serviceScope = hostProvider.CreateScope();
+
     var service = serviceScope.ServiceProvider.GetRequiredService<IService>();
+
+    var logger = serviceScope.ServiceProvider.GetRequiredService<ILogger<IService>>();
 
     var a = new ModelDetailsDto
     {
@@ -71,29 +69,57 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
     try
     {
-        ModelDetailsDto entity = await service.InsertAsync(b, user);
+        b = await ControllerInsertAsync(service, b, user, logger);
 
-        ModelDetailsDto? entity1 = await service.GetByIdAsync(entity.Id, user);
+        await ControllerGetByIdAsync(service, b, user, logger);
 
-        Console.WriteLine(entity1);
-
-        QueryResult<ModelDto> all =
-            await service.GetAllAsync(metaData, user, context =>
-            {
-                return ValueTask.FromResult(
-                    context.Queryable.Select(x => new Model
-                    {
-                        Active = x.Active,
-                        Age = x.Age,
-                        Name = "Some Address"
-                    })
-                );
-            });
-        
-        Console.WriteLine(all);
+        await ControllerGetAllAsync(service, metaData, user);
     }
     catch (Exception e)
     {
         Console.WriteLine(e);
     }
+}
+
+static async Task<ModelDetailsDto> ControllerInsertAsync(IService service, ModelDetailsDto modelDetailsDto, UserProfile user, ILogger<IService> logger1)
+{
+    ServiceResult<ModelDetailsDto> insertResult = await service.InsertAsync(modelDetailsDto, user);
+
+    if (!insertResult.TryGetResult(out ModelDetailsDto? entity))
+        return modelDetailsDto;
+
+    logger1.LogInformation("entity is {entityString}", entity?.ToString());
+
+    return entity!;
+
+}
+
+static async Task ControllerGetByIdAsync(IService service, ModelDetailsDto modelDetailsDto, UserProfile user, ILogger<IService> logger1)
+{
+    ServiceResult<ModelDetailsDto?> entity1Res = await service
+        .GetByIdAsync(modelDetailsDto.Id, user);
+
+    if (entity1Res.TryGetResult(out ModelDetailsDto? entity1))
+    {
+        logger1.LogInformation("entity is {entityString}", entity1?.ToString());
+    }
+    else
+    {
+        Console.WriteLine(entity1Res.Errors);
+    }
+}
+
+static async Task ControllerGetAllAsync(IService service, IDataTableMetaData metaData, UserProfile user)
+{
+    QueryResult<ModelDto>? allResult = await service
+        .GetAllAsync(metaData, user,
+            context => ValueTask.FromResult(
+                context.Queryable.Select(x => new Model
+                {
+                    Active = x.Active,
+                    Age = x.Age,
+                })
+            ));
+
+    Console.WriteLine(allResult);
 }

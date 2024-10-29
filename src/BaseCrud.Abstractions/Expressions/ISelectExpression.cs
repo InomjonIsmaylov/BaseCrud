@@ -1,6 +1,4 @@
-﻿using BaseCrud.General.Entities;
-
-namespace BaseCrud.Abstractions.Expressions;
+﻿namespace BaseCrud.Abstractions.Expressions;
 
 public interface ISelectExpression<TEntity, TDto>
     : ISelectExpression<TEntity, TDto, int>
@@ -12,5 +10,5 @@ public interface ISelectExpression<TEntity, TDto, in TKey>
     where TEntity : IEntity<TKey>
     where TDto : IDataTransferObject<TEntity, TKey>
 {
-    public Expression<Func<TEntity, TDto>> SelectExpression { get; }
+    Expression<Func<TEntity, TDto>> SelectExpression { get; }
 }

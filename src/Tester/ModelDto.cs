@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using BaseCrud.General.Entities;
+using BaseCrud.Entities;
 
 namespace Tester;
 

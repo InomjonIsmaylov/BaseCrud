@@ -1,6 +1,4 @@
-﻿using BaseCrud.General.Entities;
-
-namespace BaseCrud.Abstractions.Entities;
+﻿namespace BaseCrud.Abstractions.Entities;
 
 public interface IDataTableMetaData
 {
