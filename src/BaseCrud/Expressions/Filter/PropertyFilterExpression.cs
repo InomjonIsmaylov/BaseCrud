@@ -1,21 +1,35 @@
-﻿namespace BaseCrud.Expressions.Filter;
+﻿using System.Data;
+using System.Reflection;
+using BaseCrud.Internal;
+
+namespace BaseCrud.Expressions.Filter;
 
 public class PropertyFilterExpression<TEntity, TProperty>
 {
-    internal PropertyFilterExpression()
+    private readonly PropertyInfo _property;
+
+    internal PropertyFilterExpression(PropertyInfo property)
     {
-        
+        _property = property;
     }
 
-    public Dictionary<ExpressionConstraintsEnum, Expression<Func<TEntity, TProperty, bool>>> Filters { get; } = new();
-
-    public Dictionary<ExpressionConstraintsEnum, Expression<Func<TEntity, object, bool>>> FiltersWithOtherType { get; } = new();
+    internal HashSet<PredicateExpressionWith2Params> Predicates = [];
 
     public PropertyFilterExpression<TEntity, TProperty> HasFilter(
         Expression<Func<TEntity, TProperty, bool>> predicate,
         ExpressionConstraintsEnum when)
     {
-        Filters.TryAdd(when, predicate);
+        if (Predicates.Any(p => p.WhenEnum.Name == when.Name))
+            throw new InvalidExpressionException(
+                $"Predicate for property {_property.Name} of {typeof(TEntity).Name} with condition {when.Name} has already been registered");
+
+        Predicates.Add(
+            new PredicateExpressionWith2Params(
+                when,
+                predicate.Body,
+                predicate.Parameters[0],
+                FilterParam: predicate.Parameters[1])
+        );
 
         return this;
     }
@@ -24,7 +38,13 @@ public class PropertyFilterExpression<TEntity, TProperty>
         Expression<Func<TEntity, TFilter, bool>> predicate,
         ExpressionConstraintsEnum when)
     {
-        FiltersWithOtherType.TryAdd(when, (predicate as Expression<Func<TEntity, object, bool>>)!);
+        Predicates.Add(
+            new PredicateExpressionWith2Params(
+                when,
+                predicate.Body,
+                predicate.Parameters[0],
+                FilterParam: predicate.Parameters[1])
+        );
 
         return this;
     }

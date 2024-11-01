@@ -1,5 +1,4 @@
-﻿using AutoMapper.Internal;
-using BaseCrud.Entities;
+﻿using BaseCrud.Entities;
 
 namespace BaseCrud.Expressions;
 
@@ -39,10 +38,20 @@ public static class ExpressionBuilderHelper
         SortingExpressionMetaData[] sortingExpressionArgs = getSortingExpressionMetaData as SortingExpressionMetaData[]
                                                             ?? getSortingExpressionMetaData.ToArray();
 
-        foreach (SortingExpressionMetaData sExp in sortingExpressionArgs)
+        foreach ((string? original, bool _) in sortingExpressionArgs)
         {
-            if (typeof(TEntity).GetFieldOrProperty(sExp.PropertyName) is null)
-                throw new ArgumentException($"Property {sExp.PropertyName} not found in {typeof(TEntity).Name}");
+            if (BaseCrudEntry.Options.CapitalizeFirstLetterOfProvidedPropertyNames)
+            {
+                var result = $"{char.ToUpper(original[0])}{original[1..]}";
+
+                if (typeof(TEntity).GetProperty(result) is null)
+                    throw new ArgumentException($"Property {original} not found in {typeof(TEntity).Name}");
+            }
+            else
+            {
+                if (typeof(TEntity).GetProperty(original) is null)
+                    throw new ArgumentException($"Property {original} not found in {typeof(TEntity).Name}");
+            }
         }
 
         if (sortingExpressionArgs.Length == 0)

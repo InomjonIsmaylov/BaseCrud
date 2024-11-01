@@ -1,4 +1,6 @@
-﻿namespace BaseCrud.Errors;
+﻿using System.Text.Json;
+
+namespace BaseCrud.Errors;
 
 public record ServiceError(
     string ErrorMessage,
@@ -18,5 +20,10 @@ public record ServiceError(
     {
         errorMessage = ErrorMessage;
         errorKey = ErrorKey;
+    }
+
+    public override string ToString()
+    {
+        return JsonSerializer.Serialize(this);
     }
 }

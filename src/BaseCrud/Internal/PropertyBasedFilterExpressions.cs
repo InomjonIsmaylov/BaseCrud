@@ -2,20 +2,20 @@
 
 namespace BaseCrud.Internal;
 
-internal class CompiledExpressionStorage
+internal class PropertyBasedFilterExpressions
 {
-    internal CompiledExpressionStorage(Type entityType)
+    internal PropertyBasedFilterExpressions(Type entityType)
     {
         EntityType = entityType;
     }
 
-    private readonly Dictionary<string, CompiledPropertyExpressionStorage> _propertyExpressions = new();
+    private readonly Dictionary<string, PropertyBasedFilterExpression> _propertyExpressions = new();
 
     public Type EntityType { get; }
 
-    public void AddProperty(PropertyInfo property, CompiledPropertyExpressionStorage pExpStorage)
+    public void AddProperty(PropertyInfo property, PropertyBasedFilterExpression pExp)
     {
-        _propertyExpressions[property.Name] = pExpStorage;
+        _propertyExpressions[property.Name] = pExp;
     }
 
     //public Expression<Func<object, bool>>? GetExpression(string propertyName, ExpressionConstraintsEnum constraint)

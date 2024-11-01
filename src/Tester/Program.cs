@@ -12,15 +12,21 @@ using Tester;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 
+
+
 builder.Services.AddDbContext<AppDbContext>();
 builder.Services.AddScoped<AppDbContext>();
 
 builder.Logging.SetMinimumLevel(LogLevel.Debug).AddConsole();
 
 builder.Services.AddBaseCrudService(
-    new BaseCrudServiceOptions([Assembly.GetExecutingAssembly()])
+    new BaseCrudServiceOptions
+    {
+        Assemblies = [Assembly.GetExecutingAssembly()]
+    }
 );
 
+// Now automatically added as scoped inside BaseCrudService
 //builder.Services.AddScoped<IService, Service>();
 
 using IHost host = builder.Build();
@@ -31,12 +37,20 @@ const string metaJson = """
                           "rows": 10,
                           "sortField": "id",
                           "sortOrder": 1,
-                          "filters": {},
+                          "filters": {
+                            "address": { "matchMode": "rule" },
+                            "is_adult": { "matchMode": "rule" }
+                          },
                           "globalFilter": null
                         }
                         """;
 
-var m = JsonSerializer.Deserialize<DataTableMetaData>(metaJson)!;
+
+
+var m = JsonSerializer.Deserialize<PrimeTableMetaData>(metaJson, new JsonSerializerOptions(JsonSerializerDefaults.Web)
+{
+    Converters = { new ObjectToInferredTypesConverter() }
+})!;
 
 await PlayGroundWithDiAsync(host.Services, m);
 
@@ -54,10 +68,21 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
     var a = new ModelDetailsDto
     {
-        Age = "1",
+        Age = "14",
         Address = "address",
         Name = "Boby",
         Surname = "Fischer",
+        Patronymic = "ChessPlayer",
+        Email = "email",
+        Phone = "phone",
+    };
+
+    var a2 = new ModelDetailsDto
+    {
+        Age = "19",
+        Address = "address",
+        Name = "Magnus",
+        Surname = "Carlsen",
         Patronymic = "ChessPlayer",
         Email = "email",
         Phone = "phone",
@@ -71,9 +96,11 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
     {
         b = await ControllerInsertAsync(service, b, user, logger);
 
-        await ControllerGetByIdAsync(service, b, user, logger);
+        await ControllerInsertAsync(service, a2, user, logger);
 
         await ControllerGetAllAsync(service, metaData, user);
+
+        await ControllerGetByIdAsync(service, b, user, logger);
     }
     catch (Exception e)
     {

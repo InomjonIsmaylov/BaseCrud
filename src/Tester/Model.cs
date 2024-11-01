@@ -23,8 +23,8 @@ public sealed class ModelExpressions :
             Name = model.Name
         };
 
-    public Func<FilterExpressionBuilder<Model>, FilterExpressions<Model>> FilterExpressions
-        => modelFilterBuilder => modelFilterBuilder
+    public Func<FilterExpressions<Model>, FilterExpressions<Model>> FilterExpressions
+        => modelExpressions => modelExpressions
             .ForProperty(model => model.Age,
                 propFilterBuilder: ageFilterBuilder => ageFilterBuilder
                     .HasFilter((model, value) => model.Age > value, when: ExpressionConstraintsEnum.GreaterThan)
@@ -42,8 +42,7 @@ public sealed class ModelExpressions :
             )
             .AddRule("is_adult", model => model.Age >= 18)
             .AddRule("is_older_than", (Model model, int value) => model.Age > value)
-            .AddRule<DateTime>("born_after", (model, date) => model.Age > DateTime.Now.Year - date.Year)
-            .Build();
+            .AddRule<DateTime>("born_after", (model, date) => model.Age > DateTime.Now.Year - date.Year);
 }
 
 public class Model : EntityBase

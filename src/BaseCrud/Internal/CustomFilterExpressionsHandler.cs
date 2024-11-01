@@ -1,14 +1,18 @@
 ﻿using BaseCrud.Expressions.Filter;
 using System.Data;
 using System.Reflection;
-using BaseCrud.Extensions;
 using BaseCrud.Expressions;
+using BaseCrud.Extensions;
 
 namespace BaseCrud.Internal;
 
 internal static class CustomFilterExpressionsHandler
 {
-    public static Dictionary<Type, CompiledExpressionStorage> CompiledExpressions { get; } = new();
+    private static readonly Dictionary<Type, Dictionary<PropertyInfo, HashSet<PredicateExpressionWith2Params>>> CompiledExpressions = new();
+
+    private static readonly Dictionary<Type, Dictionary<string, RulePredicateExpression>> CompiledRuleExpressions = new();
+
+    private static readonly Dictionary<Type, Dictionary<string, RulePredicateExpressionWithFilterParam>> CompiledTypedRuleExpressions = new();
 
     /// <summary>
     /// Scans the given assembly to register Custom filter expressions (<see cref="IFilterExpression{TEntity}"/>)
@@ -26,36 +30,7 @@ internal static class CustomFilterExpressionsHandler
 
             foreach ((Type expressionType, Type entityType) in filterExpressionTypeArray)
             {
-                FilterExpressions<object> filterExpressions = GetFilterExpressions(expressionType, entityType);
-
-                var storage = new CompiledExpressionStorage(entityType);
-
-                foreach ((
-                             Expression<Func<object, object>> selector,
-                             Func<PropertyFilterExpression<object, object>, PropertyFilterExpression<object, object>> getFiltersFunction
-                        ) in filterExpressions.FilterPropertyExpressions)
-                {
-                    PropertyInfo prop = GetPropertyInfo(selector);
-
-                    var pStorage = new CompiledPropertyExpressionStorage(prop);
-
-                    var propertyFilterExpression =
-                        (PropertyFilterExpression<object, object>)Activator.CreateInstance(
-                            typeof(PropertyFilterExpression<,>).MakeGenericType(entityType, prop.PropertyType))!;
-
-                    PropertyFilterExpression<object, object> result = getFiltersFunction(propertyFilterExpression);
-
-                    Dictionary<ExpressionConstraintsEnum, Expression<Func<object, object, bool>>> filters =
-                        result.Filters;
-
-                    FillCompiledPredicate(filters, prop, pStorage, storage, entityType);
-
-                    Dictionary<ExpressionConstraintsEnum, Expression<Func<object, object, bool>>> filtersWithOtherType =
-                        result.FiltersWithOtherType;
-
-                    FillTypedCompiledPredicate(filtersWithOtherType, prop, pStorage, storage, entityType);
-
-                }
+                GetFilterExpressions(expressionType, entityType);
             }
         }
         catch (Exception e)
@@ -64,95 +39,52 @@ internal static class CustomFilterExpressionsHandler
         }
     }
 
-
-
-
-    private static PropertyInfo GetPropertyInfo(Expression<Func<object, object>> selector)
+    public static PredicateExpressionWith2Params? GetExpression(Type entityType, PropertyInfo prop, ExpressionConstraintsEnum condition)
     {
-        var prop = (PropertyInfo)((MemberExpression)selector.Body).Member;
+        if (!CompiledExpressions.TryGetValue(entityType, out var dict))
+            return null;
 
-        return prop;
+        return dict.TryGetValue(prop, out var hashSet)
+            ? hashSet.FirstOrDefault(x => x.WhenEnum.Name == condition.Name)
+            : null;
     }
 
-
-
-    private static void FillTypedCompiledPredicate(Dictionary<ExpressionConstraintsEnum, Expression<Func<object, object, bool>>> filtersWithOtherType, PropertyInfo prop,
-        CompiledPropertyExpressionStorage pStorage, CompiledExpressionStorage storage, Type entityType)
+    public static RulePredicateExpression? GetRule(Type entityType, string rule)
     {
-        foreach ((ExpressionConstraintsEnum? constraint, Expression<Func<object, object, bool>>? predicateRaw) in filtersWithOtherType)
-        {
-            var compiledPredicate = new CompiledPredicate(
-                Func,
-                prop.PropertyType
-            );
-
-            pStorage.AddExpression(constraint, compiledPredicate);
-
-            storage.AddProperty(prop, pStorage);
-
-            continue;
-
-            Expression<Func<object, bool>> Func(object filterValue)
-            {
-                ParameterExpression entityParam = Expression.Parameter(entityType, "entity");
-
-                ConstantExpression constExpr = Expression.Constant(filterValue, predicateRaw.Parameters[1].Type);
-
-                Expression<Func<object, bool>> predicate =
-                    Expression.Lambda<Func<object, bool>>(
-                        Expression.Invoke(predicateRaw, entityParam, constExpr), entityParam);
-
-                return predicate;
-            }
-        }
+        return !CompiledRuleExpressions.TryGetValue(entityType, out var dict)
+            ? null
+            : dict.GetValueOrDefault(rule);
     }
 
-    private static void FillCompiledPredicate(Dictionary<ExpressionConstraintsEnum, Expression<Func<object, object, bool>>> filters, PropertyInfo prop,
-        CompiledPropertyExpressionStorage pStorage, CompiledExpressionStorage storage, Type entityType)
+    public static RulePredicateExpressionWithFilterParam? GetTypedRule(Type entityType, string rule)
     {
-        foreach ((ExpressionConstraintsEnum? constraint, Expression<Func<object, object, bool>>? predicateRaw) in filters)
-        {
-            var compiledPredicate = new CompiledPredicate(
-                Func,
-                prop.PropertyType
-            );
-
-            pStorage.AddExpression(constraint, compiledPredicate);
-
-            storage.AddProperty(prop, pStorage);
-
-            continue;
-
-            Expression<Func<object, bool>> Func(object filterValue)
-            {
-                ParameterExpression entityParam = Expression.Parameter(entityType, "entity");
-
-                ConstantExpression constExpr = Expression.Constant(filterValue, prop.PropertyType);
-
-                Expression<Func<object, bool>> predicate =
-                    Expression.Lambda<Func<object, bool>>(
-                        Expression.Invoke(predicateRaw, entityParam, constExpr), entityParam);
-
-                return predicate;
-            }
-        }
+        return !CompiledTypedRuleExpressions.TryGetValue(entityType, out var dict)
+            ? null
+            : dict.GetValueOrDefault(rule);
     }
 
-    private static FilterExpressions<object> GetFilterExpressions(Type expressionType, Type entityType)
+    private static void GetFilterExpressions(Type expressionType, Type entityType)
     {
-        var filterExpression = (IFilterExpression<object>?)Activator.CreateInstance(expressionType)!;
+        dynamic? filterExpression = Activator.CreateInstance(expressionType);
 
         if (filterExpression is null)
-            throw new InvalidExpressionException($"can not create an object of type {expressionType}");
+            throw new InvalidExpressionException(
+                $"Can not create an object of type {expressionType}. Filter expression class must have a parameterless constructor");
 
-        Type builderType = typeof(FilterExpressionBuilder<>).MakeGenericType(entityType);
+        var builder = new FilterExpressionBuilder(entityType);
 
-        FilterExpressionBuilder<object> builder =
-            Activator.CreateInstance(builderType) as FilterExpressionBuilder<object> ??
-            throw new InvalidExpressionException($"Cannot create instance of {builderType}");
+        dynamic? filterExpressions = filterExpression.FilterExpressions(builder.GetInstance());
 
-        FilterExpressions<object> filterExpressions = filterExpression.FilterExpressions(builder);
+        if (filterExpressions is null)
+            throw new InvalidExpressionException(
+                $"FilterExpressions Property of {expressionType} must be a valid Function");
 
-        return filterExpressions;
+        Dictionary<PropertyInfo, HashSet<PredicateExpressionWith2Params>> predicateDictionary = filterExpressions.PredicateDictionary;
+        Dictionary<string, RulePredicateExpression> ruleExpressions = filterExpressions.RuleExpressions;
+        Dictionary<string, RulePredicateExpressionWithFilterParam> ruleTypedExpressions = filterExpressions.RuleTypedExpressions;
+        
+        CompiledExpressions.Add(entityType, predicateDictionary);
+        CompiledRuleExpressions.Add(entityType, ruleExpressions);
+        CompiledTypedRuleExpressions.Add(entityType, ruleTypedExpressions);
     }
 }

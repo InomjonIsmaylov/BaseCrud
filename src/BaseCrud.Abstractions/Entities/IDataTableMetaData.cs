@@ -9,4 +9,8 @@ public interface IDataTableMetaData
     IEnumerable<SortingExpressionMetaData> SortingExpressionMetaData { get; }
 
     IEnumerable<GlobalFilterExpressionMetaData> GlobalFilterExpressionMetaData { get; }
+
+    IEnumerable<string> Rules { get; }
+
+    IEnumerable<(string, object)> RuleFilters { get; }
 }

@@ -3,9 +3,9 @@ using BaseCrud.Expressions;
 
 namespace BaseCrud.Internal;
 
-internal class CompiledPropertyExpressionStorage
+internal class PropertyBasedFilterExpression
 {
-    internal CompiledPropertyExpressionStorage(PropertyInfo propertyInfo)
+    internal PropertyBasedFilterExpression(PropertyInfo propertyInfo)
         => PropertyInfo = propertyInfo;
 
     public PropertyInfo PropertyInfo { get; }

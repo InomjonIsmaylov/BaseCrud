@@ -1,7 +1,6 @@
 using System.Reflection;
 using BaseCrud.Abstractions.Services;
 using BaseCrud.AutoMappers;
-using BaseCrud.Expressions;
 using BaseCrud.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -43,7 +42,7 @@ public static class BaseCrudServiceExtensions
 
         DiscoverAndRegisterCrudServices();
 
-        BaseCrudEntry.AddBaseCrudCore(options.Assemblies);
+        BaseCrudEntry.AddBaseCrudCore(options.Assemblies, _options);
 
         return services;
     }
