@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+﻿using System.Diagnostics.CodeAnalysis;
 
 namespace BaseCrud.Extensions;
 
@@ -7,7 +7,8 @@ public static class StringExtensions
     /// <summary>
     /// returns the string by changing the first letter to capital
     /// </summary>
-    public static string? Capitalize(this string? value)
+    [return: NotNullIfNotNull(nameof(value))]
+    public static string? Capitalize( this string? value)
     {
         if (string.IsNullOrEmpty(value))
             return value;

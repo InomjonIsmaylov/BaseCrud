@@ -21,9 +21,9 @@ public class WeatherForecastController(
     ];
 
     [HttpGet(Name = "GetWeatherForecast")]
-    public IEnumerable<WeatherForecast> Get()
+    public IEnumerable<WeatherForecastDetailsDto> Get()
     {
-        return Enumerable.Range(1, 5).Select(index => new WeatherForecast
+        return Enumerable.Range(1, 5).Select(index => new WeatherForecastDetailsDto
             {
                 Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
                 TemperatureC = Random.Shared.Next(-20, 55),
@@ -32,12 +32,19 @@ public class WeatherForecastController(
             .ToArray();
     }
 
+
+    /// <summary>
+    /// Gets all WeatherForecast entities from db
+    /// </summary>
+    /// <param name="metaData">meta data for filtering, sorting and pagination</param>
+    /// <returns>A query result of WeatherForecastDto</returns>
     [HttpPost("[action]")]
+    [ProducesResponseType(200)]
     public async Task<ActionResult<QueryResult<WeatherForecastDto>>> GetAll(PrimeTableMetaData metaData)
     {
         ServiceResult<QueryResult<WeatherForecastDto>> serviceResult = await service.GetAllAsync(metaData, new UserProfile());
 
-        if (serviceResult.TryGetResult(out var result))
+        if (serviceResult.TryGetResult(out QueryResult<WeatherForecastDto>? result))
         {
             return Ok(result);
         }
