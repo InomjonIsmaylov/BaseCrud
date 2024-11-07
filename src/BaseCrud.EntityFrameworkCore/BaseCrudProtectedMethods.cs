@@ -1,15 +1,15 @@
 ﻿using AutoMapper.QueryableExtensions;
 using BaseCrud.Abstractions.Expressions;
-using BaseCrud.EntityFrameworkCore.Extensions;
-using BaseCrud.General.Entities;
-using BaseCrud.General.Expressions;
-using BaseCrud.General.Extensions;
+using BaseCrud.Expressions;
+using BaseCrud.Extensions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using BaseCrud.Errors;
+using BaseCrud.Errors.Keys;
 
 namespace BaseCrud.EntityFrameworkCore;
 
 /// <summary>
-///     Provides basic implementation for Crud Services of <typeparamref name="TEntity" />
+///     Provides basic implementation for Crud Operations of <typeparamref name="TEntity" />
 /// </summary>
 /// <typeparam name="TEntity">Type that represents Database Entity</typeparam>
 /// <typeparam name="TDto">DataTransferObjectType that maps the entity</typeparam>
@@ -18,7 +18,11 @@ namespace BaseCrud.EntityFrameworkCore;
 ///     <typeparamref name="TDto" />)
 /// </typeparam>
 /// <typeparam name="TKey">key property type</typeparam>
-public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
+/// <typeparam name="TUserKey">
+///     Type of the User (<see cref="IUserProfile{T}"/>) key value
+///     (e.g. <see cref="Guid"/>, <see cref="int"/>, <see cref="long"/> ...)
+/// </typeparam>
+public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
 {
     protected readonly DbContext DbContext;
     protected readonly IMapper Mapper;
@@ -43,16 +47,26 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         QueryableOfUntrackedActive = QueryableOfActive.AsNoTracking();
     }
 
-    /// <exception cref="ArgumentNullException" />
-    /// <exception cref="TableMetaDataInvalidException" />
     /// <exception cref="OperationCanceledException" />
-    protected async Task<(int totalCount, IEnumerable<TDto> data)> HandleGetAllQueryAsync(
+    protected async Task<ServiceResult<(int totalCount, IEnumerable<TDto> data)>> HandleGetAllQueryAsync(
         IDataTableMetaData dataTableMeta,
-        IUserProfile<TKey>? userProfile,
+        IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken,
-        Func<CrudActionContext<TEntity, TKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
     {
-        dataTableMeta.ThrowIfInvalid();
+        if (dataTableMeta.PaginationMetaData.Rows <= 0)
+            return BadRequest(
+                new DataTableValidationServiceError(
+                    "Rows must be greater than 0",
+                    ErrorKey: ErrorKeys.Validation.Datatable.RowsCountMustBeGreaterThanZero)
+            );
+
+        if (dataTableMeta.PaginationMetaData.First < 0)
+            return BadRequest(
+                new DataTableValidationServiceError(
+                    "First must be greater than or equal to 0",
+                    ErrorKey: ErrorKeys.Validation.Datatable.FirstMustBeGreaterThanOrEqualToZero)
+            );
 
         IQueryable<TEntity> query = GetQuery(dataTableMeta);
 
@@ -60,10 +74,9 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         if (customAction != null)
             query = await customAction(
-                new CrudActionContext<TEntity, TKey>(
+                new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    DbContext,
                     Mapper,
                     dataTableMeta,
                     cancellationToken
@@ -77,12 +90,11 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
         return (totalCount, data);
     }
 
-    /// <exception cref="ArgumentException" />
     protected IQueryable<TEntity> GetQuery(IDataTableMetaData dataTableMeta)
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
-        query = ExpressionBuilder.BuildFilterExpression(query, dataTableMeta.FilterExpressionMetaData);
+        query = ExpressionBuilder.BuildFilterExpression(query, dataTableMeta);
 
         query = ExpressionBuilder.BuildSortingExpression(query, dataTableMeta.SortingExpressionMetaData);
 
@@ -143,39 +155,58 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
             : query.Select(selectorInstance.SelectExpression);
     }
 
-    /// <exception cref="DatabaseOperationException" />
-    protected static void CheckInsertValidity(TKey id)
-    {
-        switch (id)
+    protected static ServiceResult CheckInsertValidity(TKey id)
+        => id switch
         {
-            case Guid guid when guid != Guid.Empty:
-                throw new InvalidOperationException(
-                    "Entry with Id value other than GUID.EMPTY can not be inserted into the database");
-            case int intId when intId != 0:
-                throw new DatabaseOperationException(
-                    "Entry with Id value other than zero can not be inserted into the database");
-        }
-    }
+            Guid guid when guid != Guid.Empty
+                => BadRequest(new IdValidationServiceError(
+                    "Entry with Id value other than GUID.EMPTY can not be inserted into the database",
+                    ErrorKey: ErrorKeys.Validation.Id.EmptyGuid)),
+            int intId when intId != 0
+                => BadRequest(new IdValidationServiceError(
+                    "Entry with Id value other than zero can not be inserted into the database",
+                    ErrorKey: ErrorKeys.Validation.Id.ShouldBeZero)),
+            _ => id.Equals(default)
+                ? ServiceResult.NoContent()
+                : BadRequest(
+                    new IdValidationServiceError(
+                        "Entry with Id value other than default can not be inserted into the database",
+                        ErrorKey: ErrorKeys.Validation.Id.ShouldBeDefault
+                    )
+                )
+        };
 
-    /// <exception cref="InvalidIdArgumentException" />
     /// <exception cref="DbUpdateException" />
-    /// <exception cref="DatabaseOperationException" />
-    /// <exception cref="ArgumentNullException" />
     /// <exception cref="OperationCanceledException" />
-    protected async Task CheckUpdateValidityAsync(TKey id, CancellationToken cancellationToken = default)
+    protected async Task<ServiceResult> CheckUpdateValidityAsync(TKey id, CancellationToken cancellationToken = default)
     {
         if (id is 0)
-            throw new InvalidIdArgumentException(
-                "Entry with Id value zero can not be updated in the database");
+            return BadRequest(
+                new IdValidationServiceError("Entry with Id value zero can not be updated in the database",
+                    ErrorKey: ErrorKeys.Validation.Id.ShouldNotBeZero)
+            );
+
+        if (id.Equals(default))
+            return ServiceResult.BadRequest(
+                new IdValidationServiceError(ErrorKey: ErrorKeys.Validation.Id.ShouldNotBeDefault));
 
         var model = await Set
                         .Where(e => e.Id.Equals(id))
                         .Select(e => new { e.Active })
-                        .FirstOrDefaultAsync(cancellationToken)
-                    ?? throw new DbUpdateException("Entity to update is not found!");
+                        .FirstOrDefaultAsync(cancellationToken);
+
+        if (model is null)
+            return NotFound(new NotFoundServiceError());
 
         if (!model.Active)
-            throw new DbUpdateException("Entity to update has been deactivated");
+            return ServiceResult.BadRequest(
+                new DatabaseUpdateError(
+                    ErrorMessage: "Entity to update has been deactivated",
+                    ErrorKey: ErrorKeys.Database.EntityDeactivated
+                )
+            );
+
+        return ServiceResult.NoContent();
     }
 
     /// <exception cref="DbUpdateException" />
@@ -191,7 +222,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
     /// <exception cref="DbUpdateException" />
     /// <exception cref="DbUpdateConcurrencyException" />
     /// <exception cref="OperationCanceledException" />
-    protected async Task<EntityEntry<TEntity>> HandleUpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
+    protected async Task<ServiceResult<EntityEntry<TEntity>>> HandleUpdateAsync(TEntity entity, CancellationToken cancellationToken = default)
     {
         Set.Entry(entity).State = EntityState.Detached;
 
@@ -199,27 +230,36 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey>
 
         bool saved = await HandleSaveChangesAsync(cancellationToken);
 
-        if (!saved)
-            throw new DbUpdateException("Update operation succeeded but database did not change");
+        if (saved)
+            return result;
 
-        return result;
+        return ServiceResult.BadRequest(
+            new DatabaseUpdateError(
+                ErrorMessage: "Update operation succeeded but database did not change",
+                ErrorKey: ErrorKeys.Database.EntitiesToChange
+            )
+        );
+
     }
 
     /// <exception cref="DbUpdateException" />
     /// <exception cref="DbUpdateConcurrencyException" />
-    /// <exception cref="DatabaseOperationException" />
     /// <exception cref="OperationCanceledException" />
-    protected async Task<TEntity> HandleInsertAsync(TEntity mapped, CancellationToken cancellationToken = default)
+    protected async Task<ServiceResult<TEntity>> HandleInsertAsync(TEntity mapped, CancellationToken cancellationToken = default)
     {
         EntityEntry<TEntity> entry = Set.Add(mapped);
 
         bool saved = await HandleSaveChangesAsync(cancellationToken);
 
-        if (!saved)
-            throw new DatabaseOperationException("Database Insert operation succeeded " +
-                                                 "but entity has not been saved into the database");
+        if (saved)
+            return entry.Entity;
 
-        return entry.Entity;
+        return ServiceResult.BadRequest(
+            new DatabaseInsertError(
+                ErrorMessage: "Update operation succeeded but database did not change",
+                ErrorKey: ErrorKeys.Database.EntitiesToChange
+            )
+        );
     }
 
     public void Dispose()
