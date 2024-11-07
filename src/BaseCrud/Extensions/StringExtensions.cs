@@ -8,7 +8,7 @@ public static class StringExtensions
     /// returns the string by changing the first letter to capital
     /// </summary>
     [return: NotNullIfNotNull(nameof(value))]
-    public static string? Capitalize( this string? value)
+    public static string? Capitalize(this string? value)
     {
         if (string.IsNullOrEmpty(value))
             return value;

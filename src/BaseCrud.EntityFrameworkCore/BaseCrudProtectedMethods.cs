@@ -94,7 +94,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
 
-        query = ExpressionBuilder.BuildFilterExpression(query, dataTableMeta.FilterExpressionMetaData);
+        query = ExpressionBuilder.BuildFilterExpression(query, dataTableMeta);
 
         query = ExpressionBuilder.BuildSortingExpression(query, dataTableMeta.SortingExpressionMetaData);
 

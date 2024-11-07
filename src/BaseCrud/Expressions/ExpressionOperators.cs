@@ -1,106 +1,169 @@
-﻿using System.Reflection;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using System.Reflection;
 using BaseCrud.Internal;
 
 namespace BaseCrud.Expressions;
 
-// TODO: implement custom expression binding and predicate as a rule mechanism
 public class ExpressionBuilder<TEntity>
 {
     private readonly ParameterExpression _parameterExpression = Expression.Parameter(typeof(TEntity), "e");
 
+    private readonly Type _entityType = typeof(TEntity);
+
     public Expression<Func<TEntity, bool>> BuildFilterExpression(
         string propertyName,
         ExpressionConstraintsEnum constraint,
-        object? value)
+        object? filterValue)
     {
-        Type entityType = typeof(TEntity);
+        ArgumentNullException.ThrowIfNull(filterValue, nameof(filterValue));
 
-        ConstantExpression constant = Expression.Constant(value);
+        ConstantExpression constant = Expression.Constant(filterValue);
 
-        PropertyInfo? prop = entityType.GetProperty(propertyName);
+        PropertyInfo? prop = _entityType.GetProperty(propertyName);
 
-        if (prop != null)
-        {
-            PredicateExpressionWith2Params? expressionWith2Params =
-                CustomFilterExpressionsHandler.GetExpression(entityType, prop, constraint);
-
-            if (expressionWith2Params is not null)
-            {
-                LambdaExpression actual = Expression.Lambda(
-                    expressionWith2Params.Body,
-                    expressionWith2Params.EntityParam,
-                    expressionWith2Params.FilterParam
-                );
-
-                // TODO: type should be cast if value param type is not of expressionWith2Params.FilterParam.Type type
-                ConstantExpression filterExpression =
-                    Expression.Constant(value, expressionWith2Params.FilterParam.Type);
-
-                Expression<Func<TEntity, bool>> predicate = Expression.Lambda<Func<TEntity, bool>>
-                (
-                    Expression.Invoke(actual, _parameterExpression, filterExpression),
-                    _parameterExpression
-                );
-
-                return predicate;
-            }
-        }
-
-        RulePredicateExpression? rule = CustomFilterExpressionsHandler.GetRule(entityType, propertyName);
-
-        if (rule is not null)
-        {
-            Expression<Func<TEntity, bool>> actual = Expression.Lambda<Func<TEntity, bool>>(
-                rule.Body,
-                rule.EntityParam
-            );
-
-            return actual;
-        }
-
-        RulePredicateExpressionWithFilterParam? ruleTyped = CustomFilterExpressionsHandler.GetTypedRule(entityType, propertyName);
-
-        if (ruleTyped is not null)
-        {
-            if (value is not null)
-            {
-                if (value.GetType() != ruleTyped.FilterParam.Type)
-                {
-                    object? convertedValue = Convert.ChangeType(value, ruleTyped.FilterParam.Type);
-                    if (convertedValue is null)
-                    {
-                        throw new NotImplementedException();
-                    }
-                }
-
-                LambdaExpression actual = Expression.Lambda(
-                    ruleTyped.Body,
-                    ruleTyped.EntityParam,
-                    ruleTyped.FilterParam
-                );
-
-                // TODO: type should be cast if value param type is not of expressionWith2Params.FilterParam.Type type
-                ConstantExpression filterExpression = Expression.Constant(value, ruleTyped.FilterParam.Type);
-
-                Expression<Func<TEntity, bool>> predicate = Expression.Lambda<Func<TEntity, bool>>
-                (
-                    Expression.Invoke(actual, _parameterExpression, filterExpression),
-                    _parameterExpression
-                );
-
-                return predicate;
-            }
-
-            throw new ArgumentNullException(nameof(value));
-        }
-
-        // TODO: instead of throwing an exception, check if the property name (as rule name) exists in the provided custom rules as well
         if (prop is null)
             throw new ArgumentException($"Property {propertyName} not found in {typeof(TEntity).Name}");
 
+        // ReSharper disable once ConvertIfStatementToReturnStatement
+        if (CustomPropertyFilteringDefined(prop, filterValue, constraint, out Expression<Func<TEntity, bool>>? result))
+        {
+            return result;
+        }
+
+        return DefaultPropertyFiltering(propertyName, constraint, constant);
+    }
+
+    public Expression<Func<TEntity, bool>> BuildRuleExpression(string ruleName)
+    {
+        RulePredicateExpression? rule = CustomFilterExpressionsHandler.GetRule(_entityType, ruleName);
+
+        if (rule is null)
+            throw new InvalidOperationException(
+                $"Rule with the name {ruleName} not defined for an entity of type {_entityType.Name}");
+
+        Expression<Func<TEntity, bool>> actual = Expression.Lambda<Func<TEntity, bool>>(
+            rule.Body,
+            rule.EntityParam
+        );
+
+        return actual;
+    }
+
+    public Expression<Func<TEntity, bool>> BuildRuleFilterExpression(string ruleName, object? filterValue)
+    {
+        ArgumentNullException.ThrowIfNull(filterValue, nameof(filterValue));
+        
+        RulePredicateExpressionWithFilterParam? ruleTyped =
+            CustomFilterExpressionsHandler.GetTypedRule(_entityType, ruleName);
+
+        if (ruleTyped is null)
+            throw new InvalidOperationException(
+                $"Rule filter with the name {ruleName} not defined for an entity of type {_entityType.Name}");
+
+        Type filterValueType = filterValue.GetType();
+
+        ConstantExpression filterExpression;
+
+        if (filterValueType != ruleTyped.FilterParam.Type)
+        {
+            object? convertedValue = Convert.ChangeType(filterValue, ruleTyped.FilterParam.Type, CultureInfo.CurrentCulture);
+
+            if (convertedValue is null)
+            {
+                throw new InvalidOperationException(
+                    $"type of filter value {filterValueType} can not be cast to type {ruleTyped.FilterParam.Type}");
+            }
+
+            filterExpression = Expression.Constant(convertedValue, ruleTyped.FilterParam.Type);
+        }
+        else
+        {
+            filterExpression = Expression.Constant(filterValue, ruleTyped.FilterParam.Type);
+        }
+
+        LambdaExpression actual = Expression.Lambda(
+            ruleTyped.Body,
+            ruleTyped.EntityParam,
+            ruleTyped.FilterParam
+        );
+
+        Expression<Func<TEntity, bool>> predicate = Expression.Lambda<Func<TEntity, bool>>
+        (
+            Expression.Invoke(actual, _parameterExpression, filterExpression),
+            _parameterExpression
+        );
+
+        return predicate;
+
+    }
+
+    public Expression<Func<TEntity, object>> BuildSortExpression(string propertyName)
+    {
         MemberExpression property = Expression.Property(_parameterExpression, propertyName);
 
+        return Expression.Lambda<Func<TEntity, object>>(Expression.Convert(property, typeof(object)), _parameterExpression);
+    }
 
+    private bool CustomPropertyFilteringDefined(
+        PropertyInfo prop,
+        object filterValue,
+        ExpressionConstraintsEnum constraint,
+        [NotNullWhen(true)] out Expression<Func<TEntity, bool>>? result
+    )
+    {
+        PredicateExpressionWith2Params? expressionWith2Params =
+            CustomFilterExpressionsHandler.GetExpression(_entityType, prop, constraint);
+
+        if (expressionWith2Params is null)
+        {
+            result = null;
+
+            return false;
+        }
+
+        LambdaExpression actual = Expression.Lambda(
+            expressionWith2Params.Body,
+            expressionWith2Params.EntityParam,
+            expressionWith2Params.FilterParam
+        );
+
+        Type filterValueType = filterValue.GetType();
+
+        ConstantExpression filterExpression;
+
+        if (filterValueType != expressionWith2Params.FilterParam.Type)
+        {
+            object? convertedValue = Convert.ChangeType(filterValue, expressionWith2Params.FilterParam.Type, CultureInfo.CurrentCulture);
+
+            if (convertedValue is null)
+            {
+                throw new InvalidOperationException(
+                    $"type of filter filterValue {filterValueType} can not be cast to type {expressionWith2Params.FilterParam.Type}");
+            }
+
+            filterExpression = Expression.Constant(convertedValue, expressionWith2Params.FilterParam.Type);
+        }
+        else
+        {
+            filterExpression = Expression.Constant(filterValue, expressionWith2Params.FilterParam.Type);
+        }
+
+        Expression<Func<TEntity, bool>> predicate = Expression.Lambda<Func<TEntity, bool>>
+        (
+            Expression.Invoke(actual, _parameterExpression, filterExpression),
+            _parameterExpression
+        );
+
+        result = predicate;
+
+        return true;
+    }
+
+    private Expression<Func<TEntity, bool>> DefaultPropertyFiltering(string propertyName, ExpressionConstraintsEnum constraint,
+        ConstantExpression constant)
+    {
+        MemberExpression property = Expression.Property(_parameterExpression, propertyName);
 
         Expression expression = constraint.Name switch
         {
@@ -125,12 +188,5 @@ public class ExpressionBuilder<TEntity>
         };
 
         return Expression.Lambda<Func<TEntity, bool>>(expression, _parameterExpression);
-    }
-
-    public Expression<Func<TEntity, object>> BuildSortExpression(string propertyName)
-    {
-        MemberExpression property = Expression.Property(_parameterExpression, propertyName);
-
-        return Expression.Lambda<Func<TEntity, object>>(Expression.Convert(property, typeof(object)), _parameterExpression);
     }
 }

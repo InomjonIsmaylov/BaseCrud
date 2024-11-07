@@ -1,35 +1,33 @@
 using BaseCrud.Abstractions.Entities;
+using BaseCrud.Errors;
 using BaseCrud.PrimeNg;
-using BaseCrud.ServiceResults;
 using Microsoft.AspNetCore.Mvc;
-using WebTester.Classes;
+using NSwag.Annotations;
+using WebTester.DataBase;
 using WebTester.Models;
 using WebTester.Services;
 
 namespace WebTester.Controllers;
 
-[ApiController]
-[Route("[controller]")]
 public class WeatherForecastController(
     ILogger<WeatherForecastController> logger,
-    IWeatherService service
-) : ControllerBase
+    IWeatherService service,
+    AppDbContext context
+) : BaseController
 {
-    private static readonly string[] Summaries =
-    [
-        "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-    ];
-
+    /// <summary>
+    /// Gets all weather forecasts from db
+    /// </summary>
+    /// <returns></returns>
     [HttpGet(Name = "GetWeatherForecast")]
-    public IEnumerable<WeatherForecastDetailsDto> Get()
+    [SwaggerResponse(StatusCodes.Status200OK, typeof(WeatherForecast[]))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, typeof(ServiceError[]))]
+    public async Task<ActionResult<IAsyncEnumerable<WeatherForecastDetailsDto>?>> Get()
     {
-        return Enumerable.Range(1, 5).Select(index => new WeatherForecastDetailsDto
-            {
-                Date = DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-                TemperatureC = Random.Shared.Next(-20, 55),
-                Summary = Summaries[Random.Shared.Next(Summaries.Length)]
-            })
-            .ToArray();
+        if (!_init)
+            Init().Wait();
+
+        return await FromServiceResult(service.GetFullEntityListAsync(UserProfile));
     }
 
 
@@ -39,20 +37,49 @@ public class WeatherForecastController(
     /// <param name="metaData">meta data for filtering, sorting and pagination</param>
     /// <returns>A query result of WeatherForecastDto</returns>
     [HttpPost("[action]")]
-    [ProducesResponseType(200)]
-    public async Task<ActionResult<QueryResult<WeatherForecastDto>>> GetAll(PrimeTableMetaData metaData)
+    [SwaggerResponse(StatusCodes.Status200OK, typeof(QueryResult<WeatherForecastDto>))]
+    [SwaggerResponse(StatusCodes.Status400BadRequest, typeof(ServiceError[]))]
+    public async Task<ActionResult<QueryResult<WeatherForecastDto>?>> GetAll(PrimeTableMetaData metaData)
     {
-        ServiceResult<QueryResult<WeatherForecastDto>> serviceResult = await service.GetAllAsync(metaData, new UserProfile());
+        if (!_init)
+            await Init();
+        return await FromServiceResult(service.GetAllAsync(metaData, UserProfile));
+    }
 
-        if (serviceResult.TryGetResult(out QueryResult<WeatherForecastDto>? result))
+
+
+
+
+
+
+    private static bool _init;
+
+    private async Task Init()
+    {
+        _init = true;
+
+        var seed = new WeatherForecast[]
         {
-            return Ok(result);
-        }
+            new()
+            {
+                Id = 1, TemperatureC = 15, Summary = "humid air", Date = DateOnly.FromDateTime(DateTime.Now.Date.AddDays(-2))
+            },
+            new()
+            {
+                Id = 2, TemperatureC = 30, Summary = "hot weather", Date = DateOnly.FromDateTime(DateTime.Now.Date.AddDays(-1))
+            },
+            new()
+            {
+                Id = 3, TemperatureC = -5, Summary = "freezing", Date = DateOnly.FromDateTime(DateTime.Now.Date)
+            },
+            new()
+            {
+                Id = 4, TemperatureC = 40, Summary = "rain", Date = DateOnly.FromDateTime(DateTime.Now.Date.AddDays(1))
+            }
+        };
 
-        logger.LogDebug("Not going well");
+        context.WeatherForecasts.AddRange(seed);
 
-        return StatusCode(
-            serviceResult.StatusCode, serviceResult.Errors.ToString()
-        );
+        await context.SaveChangesAsync();
     }
 }

@@ -3,6 +3,7 @@ using System.Text.Json;
 using BaseCrud;
 using BaseCrud.Abstractions;
 using BaseCrud.Abstractions.Entities;
+using BaseCrud.Entities;
 using BaseCrud.PrimeNg;
 using BaseCrud.ServiceResults;
 using Microsoft.Extensions.DependencyInjection;

@@ -27,7 +27,7 @@ public class PrimeTableMetaData : IDataTableMetaData
     public int SortOrder { get; set; }
 
     [JsonPropertyName("globalFilter")]
-    [DefaultValue(null)]
+    [DefaultValue("")]
     public string? GlobalFilter { get; set; }
 
     public override string ToString()

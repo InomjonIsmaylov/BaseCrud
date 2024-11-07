@@ -4,7 +4,8 @@ namespace BaseCrud.Errors;
 
 public record ServiceError(
     string ErrorMessage,
-    string ErrorKey)
+    string ErrorKey,
+    string? Description = null)
 {
     /// <summary>
     /// Error message
@@ -15,6 +16,11 @@ public record ServiceError(
     /// string key to use for internationalization
     /// </summary>
     public string ErrorKey { get; init; } = ErrorKey;
+
+    /// <summary>
+    /// Optional description about the error
+    /// </summary>
+    public string? Description { get; init; } = Description;
 
     public void Deconstruct(out string errorMessage, out string errorKey)
     {

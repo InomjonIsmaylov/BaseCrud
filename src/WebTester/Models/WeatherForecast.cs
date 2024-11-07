@@ -17,7 +17,8 @@ public class WeatherForecastConfiguration : IFilterExpression<WeatherForecast>
                         ExpressionConstraintsEnum.Contains)
             )
             .AddRule("is_monday", w => w.Date.DayOfWeek == DayOfWeek.Monday)
-            .AddRule<DayOfWeek>("is_day", (w, filterValue) => w.Date.DayOfWeek == filterValue);
+            .AddRule<DayOfWeek>("is_day", (w, filterValue) => w.Date.DayOfWeek == filterValue)
+            .AddRule("is_warm", forecast => forecast.TemperatureC > 20);
 }
 
 public class WeatherForecast : EntityBase

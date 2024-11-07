@@ -41,6 +41,24 @@ builder.Services.AddBaseCrudService(new BaseCrudServiceOptions
 
 var app = builder.Build();
 
+app.Use(async (context, next)=>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+
+        await context.Response.WriteAsJsonAsync(new
+        {
+            ErrorMessage = e.Message,
+            ErrorKey = "server_error"
+        });
+    }
+});
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {

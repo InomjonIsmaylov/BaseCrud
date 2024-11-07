@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using BaseCrud.Extensions;
 
@@ -16,15 +17,18 @@ public class FilterMetadataConverter : JsonConverter<FilterMetadata>
         if (result.Value is not JsonElement jsonElement)
             return result;
 
+        string rawText = jsonElement.GetRawText();
+
         result.Value = jsonElement switch
         {
             { ValueKind: JsonValueKind.Null } or { ValueKind: JsonValueKind.Undefined } => null,
             { ValueKind: JsonValueKind.False } => false,
             { ValueKind: JsonValueKind.True } => true,
-            { ValueKind: JsonValueKind.Number } when int.TryParse(jsonElement.GetString(), out int resultInt) => resultInt,
-            { ValueKind: JsonValueKind.Number } => reader.GetDouble(),
-            { ValueKind: JsonValueKind.String } when reader.TryGetDateTime(out DateTime datetime) => datetime,
-            { ValueKind: JsonValueKind.String } => reader.GetString()!,
+            { ValueKind: JsonValueKind.Number } when int.TryParse(rawText, out int resultInt) => resultInt,
+            { ValueKind: JsonValueKind.Number } => jsonElement.GetDouble(),
+            { ValueKind: JsonValueKind.String } when DateTime.TryParse(rawText, CultureInfo.CurrentCulture,
+                out DateTime resultDateTime) => resultDateTime,
+            { ValueKind: JsonValueKind.String } => jsonElement.GetString(),
             _ => throw new ArgumentOutOfRangeException(nameof(typeToConvert))
         };
 
@@ -39,9 +43,14 @@ public class FilterMetadataConverter : JsonConverter<FilterMetadata>
 
 public class PrimeTableMetaConverter : JsonConverter<PrimeTableMetaData>
 {
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        Converters = { new FilterMetadataConverter() }
+    };
+
     public override PrimeTableMetaData? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var result = JsonSerializer.Deserialize<PrimeTableMetaData>(ref reader);
+        var result = JsonSerializer.Deserialize<PrimeTableMetaData>(ref reader, Options);
 
         if (result?.Filters == null)
             return result;
@@ -62,6 +71,9 @@ public class PrimeTableMetaConverter : JsonConverter<PrimeTableMetaData>
 
             result.Filters.Add(newKey, value);
         }
+
+        if (result.SortField is not null)
+            result.SortField = result.SortField.Capitalize();
 
         return result;
     }
