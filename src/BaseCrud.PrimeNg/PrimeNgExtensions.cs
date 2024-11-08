@@ -1,4 +1,4 @@
-﻿using BaseCrud.General.Expressions;
+﻿using BaseCrud.Expressions;
 
 namespace BaseCrud.PrimeNg;
 
@@ -21,6 +21,6 @@ public class PrimeNgExtensions
             "isNot" => ExpressionConstraintsEnum.NotEquals,
             "after" => ExpressionConstraintsEnum.After,
             "before" => ExpressionConstraintsEnum.Before,
-            _ => throw new ArgumentException("Invalid constraint")
+            _ => ExpressionConstraintsEnum.Equals
         };
 }

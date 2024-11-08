@@ -7,11 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.4" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\BaseCrud.General\BaseCrud.General.csproj" />
+    <ProjectReference Include="..\BaseCrud\BaseCrud.csproj" />
   </ItemGroup>
 
 </Project>
