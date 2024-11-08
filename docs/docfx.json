@@ -3,7 +3,7 @@
     {
       "src": [
         {
-          "src": "../",
+          "src": "../src",
           "files": [
             "**/*.csproj"
           ]
@@ -36,8 +36,8 @@
       "modern"
     ],
     "globalMetadata": {
-      "_appName": "BaseCrud-docs",
-      "_appTitle": "BaseCrud-docs",
+      "_appName": "BaseCrud",
+      "_appTitle": "BaseCrud",
       "_enableSearch": true,
       "pdf": true
     }
