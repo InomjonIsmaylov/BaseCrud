@@ -1,6 +1,6 @@
 # Getting Started
 
-## Predefine classes
+## Define classes
 
 1. Models, DTOs
 2. Services (interfaces, implementations)
@@ -102,9 +102,9 @@ public class ApiUser : IUserProfile
 }
 ```
 
-### Additional
+## Additional
 
-#### DbContext
+### DbContext
 
 ```csharp
 public class AppDbContext(DbContextOptions options) : DbContext(options)
@@ -120,7 +120,7 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 }
 ```
 
-#### Add BaseCrud to service collection
+### Add BaseCrud to service collection
 
 * BaseCrud should be provided with BaseCrudOptions with a set of assemblies
 * Assemblies are used for
