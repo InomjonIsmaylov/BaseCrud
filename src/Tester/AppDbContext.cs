@@ -8,7 +8,7 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseInMemoryDatabase("TestDb");
+        //optionsBuilder.UseInMemoryDatabase("TestDb");
 
         base.OnConfiguring(optionsBuilder);
     }
