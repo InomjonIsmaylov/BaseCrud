@@ -136,7 +136,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
     Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
     CancellationToken cancellationToken = default)
     {
-        if (id is int intId)
+        if (id is int intId and < 1)
             return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
         IQueryable<TEntity> query = QueryableOfUntrackedActive.Where(x => x.Id.Equals(id));
