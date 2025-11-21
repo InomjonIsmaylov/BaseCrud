@@ -10,10 +10,9 @@ public sealed class ModelExpressions :
     IGlobalFilterExpression<Model>,
     ISelectExpression<Model, ModelDto>,
     IFilterExpression<Model>,
-    ISelectExpression<Model,ModelDetailsDto>
+    ISelectExpression<Model,ModelDetailsDto>,
+    ISelectExpression<Model,ModelPartFirstDto>
 {
-    private Expression<Func<Model, ModelDetailsDto>> _selectExpression;
-
     public Expression<Func<Model, bool>> GlobalSearchExpression(string strSearch)
     {
         return x => x.Name!.Contains(strSearch) || x.Address!.Contains(strSearch) || x.Email!.Contains(strSearch) || x.Phone!.Contains(strSearch);
@@ -51,6 +50,12 @@ public sealed class ModelExpressions :
     {
         Id = model.Id,
         Name = model.Name,
+    };
+
+    Expression<Func<Model, ModelPartFirstDto>> ISelectExpression<Model, ModelPartFirstDto, int>.SelectExpression=>model=>new ModelPartFirstDto
+    {
+        Surname = model.Surname,
+        Patronymic = "Goss"
     };
 }
 

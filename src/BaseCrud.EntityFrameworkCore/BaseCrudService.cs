@@ -33,28 +33,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         return result;
     }
 
-    public virtual async Task<ServiceResult<QueryResult<TDto>>> GetAllAsync(
+    public virtual Task<ServiceResult<QueryResult<TDto>>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
         IUserProfile<TUserKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
-    {
-        ServiceResult<(int totalCount, IEnumerable<TDto> data)> queryResult =
-            await HandleGetAllQueryAsync(dataTableMeta, userProfile, cancellationToken, customAction);
-
-        if (!queryResult.IsSuccess)
-            return ServiceResult.FromFailed(queryResult).ToType<QueryResult<TDto>>();
-
-        (int totalCount, IEnumerable<TDto> data) = queryResult.Result;
-
-        var result = new QueryResult<TDto>
-        {
-            TotalItems = totalCount,
-            Items = data
-        };
-
-        return result;
-    }
+        =>GetAllAsync<TDto>(dataTableMeta, userProfile, customAction, cancellationToken);
 
     public virtual async Task<ServiceResult<IAsyncEnumerable<TEntity>>> GetEntityListAsync(
         IUserProfile<TUserKey>? userProfile,
@@ -77,13 +61,13 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         return Ok(query.AsAsyncEnumerable());
     }
 
-    public virtual async Task<ServiceResult<IAsyncEnumerable<TDto>>> GetListAsync(
+    public virtual async Task<ServiceResult<IAsyncEnumerable<TTargetDto>>> GetListAsync<TTargetDto>(
         IUserProfile<TUserKey>? userProfile,
         Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
+    where TTargetDto:class,IDataTransferObject<TEntity,TKey>
     {
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
-
         if (customAction != null)
             query = await customAction(
                 new CrudActionContext<TEntity, TKey, TUserKey>(
@@ -94,11 +78,15 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                     cancellationToken
                 )
             );
-
-        IQueryable<TDto> queryableOfSelected = HandleSelection(query);
-
+        IQueryable<TTargetDto> queryableOfSelected = HandleSelection<TTargetDto>(query);
         return Ok(queryableOfSelected.AsAsyncEnumerable());
     }
+
+    public virtual Task<ServiceResult<IAsyncEnumerable<TDto>>> GetListAsync(
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default)
+        =>GetListAsync<TDto>(userProfile, customAction, cancellationToken);
 
     public virtual async Task<ServiceResult<IAsyncEnumerable<TDtoFull>>> GetFullEntityListAsync(
         IUserProfile<TUserKey>? userProfile,

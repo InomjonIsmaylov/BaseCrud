@@ -107,6 +107,11 @@ public interface ICrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
         Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<IAsyncEnumerable<TTargetDto>>> GetListAsync<TTargetDto>(IUserProfile<TUserKey> userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default)
+    where TTargetDto:class,IDataTransferObject<TEntity,TKey>;
+
     /// <summary>
     ///     Gets the <see cref="IAsyncEnumerable{TDto}" /> of <typeparamref name="TDto"/> by executing query to database table
     /// </summary>

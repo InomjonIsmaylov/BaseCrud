@@ -102,7 +102,7 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
         await ControllerGetByIdAsync(service, b, user, logger);
         await ControllerGetByIdTemplateAsync(service,b,user,logger);
-
+        await ControllerGetAllTargetDtoAsync(service, metaData, user);
 
     }
     catch (Exception e)
@@ -164,8 +164,10 @@ static async Task ControllerGetAllAsync(IService service, IDataTableMetaData met
 
 static async Task ControllerGetAllTargetDtoAsync(IService service, IDataTableMetaData metaData, UserProfile user)
 {
-    QueryResult<ModelDetailsDto>? allResult = await service
-        .GetAllAsync<ModelDetailsDto>(metaData, user);
+
+    QueryResult<ModelPartFirstDto>? allResult = await service
+        .GetAllAsync<ModelPartFirstDto>(metaData, user);
+
     Console.WriteLine(allResult);
 
 }
