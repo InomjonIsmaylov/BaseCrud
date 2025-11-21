@@ -23,6 +23,13 @@ public interface ICrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     where TDtoFull : class, IDataTransferObject<TEntity, TKey>
     where TUserKey : struct, IEquatable<TUserKey>
 {
+    Task<ServiceResult<QueryResult<TTargetDto>>> GetAllAsync<TTargetDto>(
+        IDataTableMetaData dataTableMeta,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default)
+        where TTargetDto:class,IDataTransferObject<TEntity,TKey>;
+
     /// <summary>
     ///     Gets all entities by executing query to database table and maps entities to <typeparamref name="TDto" />
     /// </summary>
@@ -59,6 +66,13 @@ public interface ICrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
         Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<TTargetDto?>> GetByIdAsync<TTargetDto>(
+        TKey id,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default
+        ) where TTargetDto:class,IDataTransferObject<TEntity,TKey>;
+    
     /// <summary>
     ///     Gets the first entity by executing query to database table and maps to <typeparamref name="TDto" />
     /// </summary>

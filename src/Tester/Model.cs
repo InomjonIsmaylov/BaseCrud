@@ -9,8 +9,11 @@ namespace Tester;
 public sealed class ModelExpressions :
     IGlobalFilterExpression<Model>,
     ISelectExpression<Model, ModelDto>,
-    IFilterExpression<Model>
+    IFilterExpression<Model>,
+    ISelectExpression<Model,ModelDetailsDto>
 {
+    private Expression<Func<Model, ModelDetailsDto>> _selectExpression;
+
     public Expression<Func<Model, bool>> GlobalSearchExpression(string strSearch)
     {
         return x => x.Name!.Contains(strSearch) || x.Address!.Contains(strSearch) || x.Email!.Contains(strSearch) || x.Phone!.Contains(strSearch);
@@ -43,6 +46,12 @@ public sealed class ModelExpressions :
             .AddRule("is_adult", model => model.Age >= 18)
             .AddRule("is_older_than", (Model model, int value) => model.Age > value)
             .AddRule<DateTime>("born_after", (model, date) => model.Age > DateTime.Now.Year - date.Year);
+
+    Expression<Func<Model, ModelDetailsDto>> ISelectExpression<Model, ModelDetailsDto, int>.SelectExpression => model =>new ModelDetailsDto
+    {
+        Id = model.Id,
+        Name = model.Name,
+    };
 }
 
 public class Model : EntityBase

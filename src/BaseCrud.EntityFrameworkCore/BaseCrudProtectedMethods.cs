@@ -47,12 +47,13 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         QueryableOfUntrackedActive = QueryableOfActive.AsNoTracking();
     }
 
-    /// <exception cref="OperationCanceledException" />
-    protected async Task<ServiceResult<(int totalCount, IEnumerable<TDto> data)>> HandleGetAllQueryAsync(
-        IDataTableMetaData dataTableMeta,
-        IUserProfile<TUserKey>? userProfile,
-        CancellationToken cancellationToken,
-        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
+    protected async Task<ServiceResult<(int totalCount, IEnumerable<TTargetDto> data)>>
+        HandleGetAllQueryAsync<TTargetDto>(
+            IDataTableMetaData dataTableMeta,
+            IUserProfile<TUserKey>? userProfile,
+            CancellationToken cancellationToken,
+            Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
+        where TTargetDto : class, IDataTransferObject<TEntity, TKey>
     {
         if (dataTableMeta.PaginationMetaData.Rows <= 0)
             return BadRequest(
@@ -85,10 +86,59 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
         int totalCount = await query.CountAsync(cancellationToken);
 
-        List<TDto> data = await RetrieveDataAsync(dataTableMeta, query, cancellationToken);
+        List<TTargetDto> data = await RetrieveDataAsync<TTargetDto>(dataTableMeta, query, cancellationToken);
 
         return (totalCount, data);
     }
+
+
+    /// <exception cref="OperationCanceledException" />
+    protected async Task<ServiceResult<(int totalCount, IEnumerable<TDto> data)>> HandleGetAllQueryAsync(
+        IDataTableMetaData dataTableMeta,
+        IUserProfile<TUserKey>? userProfile,
+        CancellationToken cancellationToken,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null)
+    => await HandleGetAllQueryAsync<TDto>(
+        dataTableMeta,
+        userProfile,
+        cancellationToken,
+        customAction);
+    //{
+    //    if (dataTableMeta.PaginationMetaData.Rows <= 0)
+    //        return BadRequest(
+    //            new DataTableValidationServiceError(
+    //                "Rows must be greater than 0",
+    //                ErrorKey: ErrorKeys.Validation.Datatable.RowsCountMustBeGreaterThanZero)
+    //        );
+
+    //    if (dataTableMeta.PaginationMetaData.First < 0)
+    //        return BadRequest(
+    //            new DataTableValidationServiceError(
+    //                "First must be greater than or equal to 0",
+    //                ErrorKey: ErrorKeys.Validation.Datatable.FirstMustBeGreaterThanOrEqualToZero)
+    //        );
+
+    //    IQueryable<TEntity> query = GetQuery(dataTableMeta);
+
+    //    query = HandleGlobalFilter(dataTableMeta, query);
+
+    //    if (customAction != null)
+    //        query = await customAction(
+    //            new CrudActionContext<TEntity, TKey, TUserKey>(
+    //                query,
+    //                userProfile,
+    //                Mapper,
+    //                dataTableMeta,
+    //                cancellationToken
+    //            )
+    //        );
+
+    //    int totalCount = await query.CountAsync(cancellationToken);
+
+    //    List<TDto> data = await RetrieveDataAsync(dataTableMeta, query, cancellationToken);
+
+    //    return (totalCount, data);
+    //}
 
     protected IQueryable<TEntity> GetQuery(IDataTableMetaData dataTableMeta)
     {
@@ -101,23 +151,37 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         return query;
     }
 
-    /// <exception cref="OperationCanceledException" />
-    protected Task<List<TDto>> RetrieveDataAsync(
+    protected Task<List<TTargetDto>> RetrieveDataAsync<TTargetDto>(
         IDataTableMetaData dataTableMeta,
         IQueryable<TEntity> query,
-        CancellationToken cancellationToken
-    )
+        CancellationToken cancellationToken)
+        where TTargetDto : class, IDataTransferObject<TEntity, TKey>
     {
         PaginationMetaData paginationMeta = dataTableMeta.PaginationMetaData;
-
         query = query
             .Skip(paginationMeta.First)
             .Take(paginationMeta.Rows);
-            
-        IQueryable<TDto> queryableOfSelected = HandleSelection(query);
-
+        IQueryable<TTargetDto> queryableOfSelected = HandleSelection<TTargetDto>(query);
         return queryableOfSelected.ToListAsync(cancellationToken);
     }
+
+    /// <exception cref="OperationCanceledException" />
+    //protected Task<List<TDto>> RetrieveDataAsync(
+    //    IDataTableMetaData dataTableMeta,
+    //    IQueryable<TEntity> query,
+    //    CancellationToken cancellationToken
+    //)
+    //{
+    //    PaginationMetaData paginationMeta = dataTableMeta.PaginationMetaData;
+
+    //    query = query
+    //        .Skip(paginationMeta.First)
+    //        .Take(paginationMeta.Rows);
+            
+    //    IQueryable<TDto> queryableOfSelected = HandleSelection(query);
+
+    //    return queryableOfSelected.ToListAsync(cancellationToken);
+    //}
 
     protected IQueryable<TEntity> HandleGlobalFilter(
         IDataTableMetaData dataTableMeta,
@@ -140,6 +204,23 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                         globalFilterInstance.GlobalSearchExpression(g.SearchString)
                     )
                 );
+    }
+
+    protected IQueryable<TTargetDto> HandleSelection<TTargetDto>(IQueryable<TEntity> query)
+        where TTargetDto : class, IDataTransferObject<TEntity, TKey>
+    {
+        Type assigningType = typeof(ISelectExpression<,,>)
+            .MakeGenericType(typeof(TEntity), typeof(TTargetDto), typeof(TKey));
+
+        Type? selectorType = typeof(TEntity).Assembly
+            .GetTypeAssignableFromInterface(assigningType);
+
+        if (selectorType is null)
+            return query.ProjectTo<TTargetDto>(Mapper.ConfigurationProvider);
+
+        return Activator.CreateInstance(selectorType) is not ISelectExpression<TEntity, TTargetDto, TKey> selectorInstance
+            ? query.ProjectTo<TTargetDto>(Mapper.ConfigurationProvider)
+            : query.Select(selectorInstance.SelectExpression);
     }
 
     protected IQueryable<TDto> HandleSelection(IQueryable<TEntity> query)

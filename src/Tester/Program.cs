@@ -36,10 +36,9 @@ const string metaJson = """
                         {
                           "first": 0,
                           "rows": 10,
-                          "sortField": "id",
+                          "sortField": "Id",
                           "sortOrder": 1,
                           "filters": {
-                            "address": { "matchMode": "rule" },
                             "is_adult": { "matchMode": "rule" }
                           },
                           "globalFilter": null
@@ -99,15 +98,18 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
         await ControllerInsertAsync(service, a2, user, logger);
 
-        await ControllerGetAllAsync(service, metaData, user);
+        //await ControllerGetAllAsync(service, metaData, user);
 
         await ControllerGetByIdAsync(service, b, user, logger);
+        await ControllerGetByIdTemplateAsync(service,b,user,logger);
+
+
     }
     catch (Exception e)
     {
         Console.WriteLine(e);
     }
-}
+} 
 
 static async Task<ModelDetailsDto> ControllerInsertAsync(IService service, ModelDetailsDto modelDetailsDto, UserProfile user, ILogger<IService> logger1)
 {
@@ -137,17 +139,33 @@ static async Task ControllerGetByIdAsync(IService service, ModelDetailsDto model
     }
 }
 
+static async Task ControllerGetByIdTemplateAsync(IService service, ModelDetailsDto modelDetailsDto, UserProfile userProfile,
+    ILogger<IService> logger)
+{
+    ServiceResult<ModelPartFirstDto?> result  =await service.GetByIdAsync<ModelPartFirstDto>(modelDetailsDto.Id, userProfile);
+
+    if (result.TryGetResult(out ModelPartFirstDto? entity))
+    {
+        logger.LogInformation("entity is {entityString}", entity?.ToString());
+    }
+    else
+    {
+        Console.WriteLine(result.Errors);
+    }
+}
+
 static async Task ControllerGetAllAsync(IService service, IDataTableMetaData metaData, UserProfile user)
 {
     QueryResult<ModelDto>? allResult = await service
-        .GetAllAsync(metaData, user,
-            context => ValueTask.FromResult(
-                context.Queryable.Select(x => new Model
-                {
-                    Active = x.Active,
-                    Age = x.Age,
-                })
-            ));
+        .GetAllAsync(metaData, user);
 
     Console.WriteLine(allResult);
+}
+
+static async Task ControllerGetAllTargetDtoAsync(IService service, IDataTableMetaData metaData, UserProfile user)
+{
+    QueryResult<ModelDetailsDto>? allResult = await service
+        .GetAllAsync<ModelDetailsDto>(metaData, user);
+    Console.WriteLine(allResult);
+
 }

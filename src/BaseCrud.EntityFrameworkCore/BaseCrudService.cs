@@ -13,6 +13,26 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
     where TKey : struct, IEquatable<TKey>
     where TUserKey : struct, IEquatable<TUserKey>
 {
+    public virtual async Task<ServiceResult<QueryResult<TTargetDto>>> GetAllAsync<TTargetDto>(
+        IDataTableMetaData dataTableMeta,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default)
+    where TTargetDto:class,IDataTransferObject<TEntity,TKey>
+    {
+        ServiceResult<(int totalCount, IEnumerable<TTargetDto> data)> queryResult =
+            await HandleGetAllQueryAsync<TTargetDto>(dataTableMeta, userProfile, cancellationToken, customAction);
+        if (!queryResult.IsSuccess)
+            return ServiceResult.FromFailed(queryResult).ToType<QueryResult<TTargetDto>>();
+        (int totalCount, IEnumerable<TTargetDto> data) = queryResult.Result;
+        var result = new QueryResult<TTargetDto>
+        {
+            TotalItems = totalCount,
+            Items = data
+        };
+        return result;
+    }
+
     public virtual async Task<ServiceResult<QueryResult<TDto>>> GetAllAsync(
         IDataTableMetaData dataTableMeta,
         IUserProfile<TUserKey>? userProfile,
@@ -130,13 +150,14 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         return result;
     }
 
-    public virtual async Task<ServiceResult<TDtoFull?>> GetByIdAsync(
-    TKey id,
-    IUserProfile<TUserKey>? userProfile,
-    Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
-    CancellationToken cancellationToken = default)
+    public virtual async Task<ServiceResult<TTargetDto?>> GetByIdAsync<TTargetDto>(
+        TKey id,
+        IUserProfile<TUserKey>? userProfile,
+        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+        CancellationToken cancellationToken = default)
+    where TTargetDto:class,IDataTransferObject<TEntity,TKey>
     {
-        if (id is int intId and < 1)
+        if(id is int intId and < 1)
             return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
         IQueryable<TEntity> query = QueryableOfUntrackedActive.Where(x => x.Id.Equals(id));
@@ -152,15 +173,53 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 )
             );
 
-        TDtoFull? result = await Mapper
-            .ProjectTo<TDtoFull>(query)
+        TTargetDto? result = await Mapper
+            .ProjectTo<TTargetDto>(query)
             .FirstOrDefaultAsync(cancellationToken);
-
         if (result is null)
             return NotFound(new NotFoundServiceError());
 
         return result;
     }
+
+    public virtual Task<ServiceResult<TDtoFull?>> GetByIdAsync(
+    TKey id,
+    IUserProfile<TUserKey>? userProfile,
+    Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    CancellationToken cancellationToken = default)
+        =>GetByIdAsync<TDtoFull>(id, userProfile, customAction, cancellationToken);
+
+    //public virtual async Task<ServiceResult<TDtoFull?>> GetByIdAsync(
+    //TKey id,
+    //IUserProfile<TUserKey>? userProfile,
+    //Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    //CancellationToken cancellationToken = default)
+    //{
+    //    if (id is int intId and < 1)
+    //        return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
+
+    //    IQueryable<TEntity> query = QueryableOfUntrackedActive.Where(x => x.Id.Equals(id));
+
+    //    if (customAction != null)
+    //        query = await customAction(
+    //            new CrudActionContext<TEntity, TKey, TUserKey>(
+    //                query,
+    //                userProfile,
+    //                Mapper,
+    //                DataTableMetaData: null,
+    //                cancellationToken
+    //            )
+    //        );
+
+    //    TDtoFull? result = await Mapper
+    //        .ProjectTo<TDtoFull>(query)
+    //        .FirstOrDefaultAsync(cancellationToken);
+
+    //    if (result is null)
+    //        return NotFound(new NotFoundServiceError());
+
+    //    return result;
+    //}
 
     public virtual async Task<ServiceResult<TEntity>> InsertAsync(
         TEntity entity,
