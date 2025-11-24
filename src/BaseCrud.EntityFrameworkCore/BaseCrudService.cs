@@ -291,6 +291,29 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         return Mapper.Map<TDtoFull>(result.Entity);
     }
 
+    public virtual async Task<ServiceResult<TDtoFull>> Update(
+        TDtoFull entityDto,
+        TEntity entity,
+        IUserProfile<TUserKey>? userProfile,
+        CancellationToken cancellationToken = default)
+    {
+        var mapped = Mapper.Map(entityDto,entity);
+
+        ServiceResult validationResult = await CheckUpdateValidityAsync(mapped.Id, cancellationToken);
+
+        if (!validationResult.IsSuccess)
+            return validationResult;
+
+        ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(mapped, cancellationToken);
+
+        if (!updateResult.IsSuccess)
+            return ServiceResult.FromFailed(updateResult).ToType<TDtoFull>();
+
+        EntityEntry<TEntity> result = updateResult.Result!;
+
+        return Mapper.Map<TDtoFull>(result.Entity);
+    }
+
     public async Task<ServiceResult<int>> PatchUpdateAsync(
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,

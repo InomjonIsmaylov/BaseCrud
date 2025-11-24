@@ -208,4 +208,6 @@ public interface ICrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     /// </returns>
     /// <exception cref="OperationCanceledException" />
     Task<ServiceResult<TDtoFull>> UpdateAsync(TDtoFull entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
+
+    //Task<ServiceResult<TDtoFull>> UpdateAsync(TDtoFull entityDto, TEntity entity, IUserProfile<TUserKey>? userProfile, CancellationToken cancellationToken = default);
 }
