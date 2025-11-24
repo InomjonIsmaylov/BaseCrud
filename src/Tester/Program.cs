@@ -64,6 +64,8 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
 
     var service = serviceScope.ServiceProvider.GetRequiredService<IService>();
 
+    var dbContext= serviceScope.ServiceProvider.GetRequiredService<AppDbContext>();
+
     var logger = serviceScope.ServiceProvider.GetRequiredService<ILogger<IService>>();
 
     var a = new ModelDetailsDto
@@ -103,6 +105,10 @@ static async Task PlayGroundWithDiAsync(IServiceProvider hostProvider, IDataTabl
         await ControllerGetByIdAsync(service, b, user, logger);
         await ControllerGetByIdTemplateAsync(service,b,user,logger);
         await ControllerGetAllTargetDtoAsync(service, metaData, user);
+
+        await ControllerUpdateAsync(service, dbContext, b, user);
+
+        await ControllerGetAllAsync(service, metaData, user);
 
     }
     catch (Exception e)
@@ -170,4 +176,26 @@ static async Task ControllerGetAllTargetDtoAsync(IService service, IDataTableMet
 
     Console.WriteLine(allResult);
 
+}
+
+static async Task ControllerUpdateAsync(IService service, AppDbContext context, ModelDetailsDto modelDetailsDto,
+    UserProfile user)
+{
+    Model? entity = context.Models.FirstOrDefault();
+
+    if (entity == null)
+    {
+        Console.WriteLine("Entity not found for update");
+        return;
+    }
+    
+    entity.Surname="UpdatedSurname";
+
+    context.Models.Update(entity);
+
+    await context.SaveChangesAsync();
+
+    ServiceResult<ModelDetailsDto> updateResult = await service
+        .UpdateAsync(modelDetailsDto, user);
+    Console.WriteLine(updateResult);
 }
