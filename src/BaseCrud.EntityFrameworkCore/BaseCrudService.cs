@@ -109,7 +109,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
         CancellationToken cancellationToken = default)
     {
-        if (id is int intId)
+        if (id is int intId and < 1)
             return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
         IQueryable<TEntity> query = QueryableOfUntrackedActive;
@@ -131,15 +131,15 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
     }
 
     public virtual async Task<ServiceResult<TDtoFull?>> GetByIdAsync(
-        TKey id,
-        IUserProfile<TUserKey>? userProfile,
-        Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
-        CancellationToken cancellationToken = default)
+    TKey id,
+    IUserProfile<TUserKey>? userProfile,
+    Func<CrudActionContext<TEntity, TKey, TUserKey>, ValueTask<IQueryable<TEntity>>>? customAction = null,
+    CancellationToken cancellationToken = default)
     {
-        if (id is int intId)
+        if (id is int intId and < 1)
             return BadRequest(new IdValidationServiceError("Id " + intId + "must be greater than zero"));
 
-        IQueryable<TEntity> query = QueryableOfUntrackedActive;
+        IQueryable<TEntity> query = QueryableOfUntrackedActive.Where(x => x.Id.Equals(id));
 
         if (customAction != null)
             query = await customAction(
@@ -152,12 +152,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 )
             );
 
-        TEntity? entity = await query.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
+        TDtoFull? result = await Mapper
+            .ProjectTo<TDtoFull>(query)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (entity is null)
+        if (result is null)
             return NotFound(new NotFoundServiceError());
-
-        var result = Mapper.Map<TDtoFull>(entity);
 
         return result;
     }

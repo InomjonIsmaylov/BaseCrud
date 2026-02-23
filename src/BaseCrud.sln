@@ -15,6 +15,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BaseCrud", "BaseCrud\BaseCr
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WebTester", "WebTester\WebTester.csproj", "{8685521A-552C-42AE-88BD-47EC2E32CE42}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BaseCrud.ALL", "BaseCrud.ALL\BaseCrud.ALL.csproj", "{B9AF7755-C86C-430B-9656-B68318C31D96}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,10 @@ Global
 		{8685521A-552C-42AE-88BD-47EC2E32CE42}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8685521A-552C-42AE-88BD-47EC2E32CE42}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8685521A-552C-42AE-88BD-47EC2E32CE42}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9AF7755-C86C-430B-9656-B68318C31D96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9AF7755-C86C-430B-9656-B68318C31D96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9AF7755-C86C-430B-9656-B68318C31D96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9AF7755-C86C-430B-9656-B68318C31D96}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

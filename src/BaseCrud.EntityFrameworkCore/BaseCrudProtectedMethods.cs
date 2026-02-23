@@ -144,8 +144,11 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
     protected IQueryable<TDto> HandleSelection(IQueryable<TEntity> query)
     {
+        Type assigningType = typeof(ISelectExpression<,,>)
+            .MakeGenericType(typeof(TEntity), typeof(TDto), typeof(TKey));
+
         Type? selectorType = typeof(TEntity).Assembly
-            .GetTypeAssignableFromInterface(typeof(ISelectExpression<,,>));
+            .GetTypeAssignableFromInterface(assigningType);
 
         if (selectorType is null)
             return query.ProjectTo<TDto>(Mapper.ConfigurationProvider);
