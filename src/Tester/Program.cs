@@ -38,10 +38,8 @@ const string metaJson = """
                           "rows": 10,
                           "sortField": "Id",
                           "sortOrder": 1,
-                          "filters": {
-                            "is_adult": { "matchMode": "rule" }
-                          },
-                          "globalFilter": null
+                          "filters": {},
+                          "globalFilter": "Boby"
                         }
                         """;
 

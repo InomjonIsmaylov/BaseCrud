@@ -46,7 +46,13 @@ public class WeatherForecastController(
         return await FromServiceResult(service.GetAllAsync(metaData, UserProfile));
     }
 
-
+    [HttpPatch("[action]/{id}")]
+    public async Task<ActionResult<WeatherForecastDto>> PatchUpdate(int id, [FromBody] WeatherForecastDetailsDto patchDto)
+    {
+        if (!_init)
+            await Init();
+        return await FromServiceResult(service.PatchUpdateAsync());
+    }
 
 
 

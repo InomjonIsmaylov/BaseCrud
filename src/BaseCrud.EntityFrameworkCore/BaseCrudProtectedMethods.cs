@@ -189,9 +189,12 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
     {
         if (!dataTableMeta.GlobalFilterExpressionMetaData.Any())
             return query;
+        
+        Type assigningType = typeof(IGlobalFilterExpression<,>)
+            .MakeGenericType(typeof(TEntity), typeof(TKey));
 
         Type? globalFilter = typeof(TEntity).Assembly
-            .GetTypeAssignableFromInterface(typeof(IGlobalFilterExpression<,>));
+            .GetTypeAssignableFromInterface(assigningType); 
 
         if (globalFilter is null)
             return query;
@@ -214,7 +217,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
         Type? selectorType = typeof(TEntity).Assembly
             .GetTypeAssignableFromInterface(assigningType);
-
+        
         if (selectorType is null)
             return query.ProjectTo<TTargetDto>(Mapper.ConfigurationProvider);
 
