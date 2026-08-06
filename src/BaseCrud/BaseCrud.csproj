@@ -10,7 +10,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="Ardalis.SmartEnum" Version="8.0.0" />
-		<PackageReference Include="AutoMapper" Version="13.0.1" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
 		<None Include="../../README.md" Pack="true" PackagePath="" />
