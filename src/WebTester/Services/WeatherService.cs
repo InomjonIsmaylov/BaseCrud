@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+﻿using BaseCrud.Abstractions.Mapping;
 using BaseCrud.EntityFrameworkCore;
 using WebTester.DataBase;
 using WebTester.Models;
@@ -9,9 +9,9 @@ public class WeatherService : BaseCrudService<WeatherForecast, WeatherForecastDt
 {
     public WeatherService(
         AppDbContext dbContext,
-        IMapper mapper,
+        IDtoMappingRegistry mappingRegistry,
         ILogger<IWeatherService> logger
-        ) : base(dbContext, mapper)
+        ) : base(dbContext, mappingRegistry)
     {
 
     }
