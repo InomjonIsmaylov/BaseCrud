@@ -1,5 +1,4 @@
-﻿using AutoMapper.QueryableExtensions;
-using BaseCrud.Abstractions.Expressions;
+﻿using BaseCrud.Abstractions.Expressions;
 using BaseCrud.Expressions;
 using BaseCrud.Extensions;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
@@ -25,7 +24,7 @@ namespace BaseCrud.EntityFrameworkCore;
 public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
 {
     protected readonly DbContext DbContext;
-    protected readonly IMapper Mapper;
+    protected readonly IDtoMappingRegistry MappingRegistry;
     protected readonly IQueryable<TEntity> QueryableOfActive;
     protected readonly IQueryable<TEntity> QueryableOfUntrackedActive;
     protected readonly DbSet<TEntity> Set;
@@ -33,10 +32,10 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
     protected BaseCrudService(
         DbContext dbContext,
-        IMapper mapper
+        IDtoMappingRegistry mappingRegistry
     )
     {
-        Mapper = mapper;
+        MappingRegistry = mappingRegistry;
 
         DbContext = dbContext;
 
@@ -77,7 +76,6 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     dataTableMeta,
                     cancellationToken
                 )
@@ -144,18 +142,8 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
     protected IQueryable<TDto> HandleSelection(IQueryable<TEntity> query)
     {
-        Type assigningType = typeof(ISelectExpression<,,>)
-            .MakeGenericType(typeof(TEntity), typeof(TDto), typeof(TKey));
-
-        Type? selectorType = typeof(TEntity).Assembly
-            .GetTypeAssignableFromInterface(assigningType);
-
-        if (selectorType is null)
-            return query.ProjectTo<TDto>(Mapper.ConfigurationProvider);
-
-        return Activator.CreateInstance(selectorType) is not ISelectExpression<TEntity, TDto, TKey> selectorInstance
-            ? query.ProjectTo<TDto>(Mapper.ConfigurationProvider)
-            : query.Select(selectorInstance.SelectExpression);
+        var mapping = MappingRegistry.Get<TEntity, TDto, TKey>();
+        return query.Select(mapping.SelectExpression);
     }
 
     protected static ServiceResult CheckInsertValidity(TKey id)

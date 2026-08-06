@@ -1,11 +1,8 @@
-﻿using AutoMapper;
-
-namespace BaseCrud.Abstractions.Entities;
+﻿namespace BaseCrud.Abstractions.Entities;
 
 public record CrudActionContext<TEntity, TKey, TUserKey>(
     IQueryable<TEntity> Queryable,
     IUserProfile<TUserKey>? UserProfile,
-    IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
     CancellationToken CancellationToken
 )
@@ -16,14 +13,12 @@ public record CrudActionContext<TEntity, TKey, TUserKey>(
 public record CrudActionContext<TEntity, TUserKey>(
     IQueryable<TEntity> Queryable,
     IUserProfile<TUserKey>? UserProfile,
-    IMapper Mapper,
     IDataTableMetaData? DataTableMetaData,
     CancellationToken CancellationToken
 )
     : CrudActionContext<TEntity, int, TUserKey>(
         Queryable,
         UserProfile,
-        Mapper,
         DataTableMetaData,
         CancellationToken
     )
