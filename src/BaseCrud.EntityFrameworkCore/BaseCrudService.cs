@@ -244,9 +244,9 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
         TEntity updatedValues = mapping.UpdateEntity(existing, entity);
 
-        DbContext.Entry(existing).CurrentValues.SetValues(updatedValues);
+        updatedValues.Id = id;
 
-        existing.Id = id;
+        DbContext.Entry(existing).CurrentValues.SetValues(updatedValues);
 
         ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(existing, cancellationToken);
 

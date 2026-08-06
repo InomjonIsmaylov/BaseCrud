@@ -37,6 +37,8 @@ public class WeatherForecast : EntityBase
 ```csharp
 public class WeatherForecastDto : IDataTransferObject<WeatherForecast>
 {
+    public int Id { get; set; }
+
     public DateOnly Date { get; set; }
 
     public int TemperatureC { get; set; }
@@ -44,6 +46,8 @@ public class WeatherForecastDto : IDataTransferObject<WeatherForecast>
 
 public class WeatherForecastDetailsDto : IDataTransferObject<WeatherForecast>
 {
+    public int Id { get; set; }
+
     public DateOnly Date { get; set; }
 
     public int TemperatureC { get; set; }
@@ -68,6 +72,7 @@ public sealed class WeatherForecastExpressions :
         IDtoMapping<WeatherForecast, WeatherForecastDto, int>.SelectExpression =>
         entity => new WeatherForecastDto
         {
+            Id = entity.Id,
             Date = entity.Date,
             TemperatureC = entity.TemperatureC
         };
@@ -95,6 +100,7 @@ public sealed class WeatherForecastExpressions :
         IDtoMapping<WeatherForecast, WeatherForecastDetailsDto, int>.SelectExpression =>
         entity => new WeatherForecastDetailsDto
         {
+            Id = entity.Id,
             Date = entity.Date,
             TemperatureC = entity.TemperatureC,
             Summary = entity.Summary
