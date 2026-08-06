@@ -20,7 +20,9 @@ public static class DtoMappingDiscovery
             foreach ((Type implementorType, Type[] genericArgs) in
                      assembly.GetImplementingTypeWithGenericArguments(typeof(IDtoMapping<,,>)))
             {
-                if (genericArgs.Length != 3)
+                if (genericArgs.Length != 3
+                    || implementorType.ContainsGenericParameters
+                    || genericArgs.Any(type => type.ContainsGenericParameters))
                     continue;
 
                 Type entityType = genericArgs[0];
