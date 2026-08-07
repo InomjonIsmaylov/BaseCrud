@@ -1,5 +1,8 @@
-﻿using BaseCrud.EntityFrameworkCore.Services;
+﻿using BaseCrud.EntityFrameworkCore.JsonPatch;
+using BaseCrud.EntityFrameworkCore.Services;
 using BaseCrud.Errors;
+using BaseCrud.Errors.Keys;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Query;
 
@@ -338,6 +341,42 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         TEntity entity = (await Set.FindAsync([id], cancellationToken))!;
 
         return MappingRegistry.Get<TEntity, TDtoFull, TKey>().MapToDto(entity);
+    }
+
+    public async Task<ServiceResult<TDtoFull>> PatchUpdateAsync(
+        TKey id,
+        JsonPatchDocument<TDtoFull> patch,
+        IUserProfile<TUserKey>? userProfile,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(patch);
+
+        ServiceResult validationResult = await CheckUpdateValidityAsync(id, cancellationToken);
+
+        if (!validationResult.IsSuccess)
+            return validationResult;
+
+        TEntity? entity = await Set.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
+
+        if (entity is null)
+            return NotFound(new NotFoundServiceError());
+
+        if (JsonPatchOperationGuards.TryGetGuardError(patch.Operations, out ValidationServiceError? guardError))
+            return BadRequest(guardError!);
+
+        TDtoFull dto = MappingRegistry.Get<TEntity, TDtoFull, TKey>().MapToDto(entity);
+
+        var applyErrors = new List<string>();
+        patch.ApplyTo(dto, error => applyErrors.Add(error.ErrorMessage));
+
+        if (applyErrors.Count > 0)
+        {
+            return BadRequest(new ValidationServiceError(
+                string.Join("; ", applyErrors),
+                ErrorKeys.Validation.JsonPatch.ApplyFailed));
+        }
+
+        return await UpdateAsync(dto, userProfile, cancellationToken);
     }
 
     public async Task<ServiceResult> DeactivateByIdAsync(
