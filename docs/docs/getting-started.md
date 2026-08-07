@@ -8,7 +8,8 @@
 
 ### Models, DTOs
 
-* BaseCrud uses [AutoMapper](https://automapper.org/) package. Developers **should not** create mappings for Models and DTOs as BaseCrud automatically registers those mappings in AutoMapper profile
+* BaseCrud requires an `IDtoMapping<TEntity, TDto>` implementation for every list and details DTO used by a CRUD service.
+* Mapping implementations are discovered from the assemblies passed to `AddBaseCrudService`.
 
 #### Models
 
@@ -36,6 +37,8 @@ public class WeatherForecast : EntityBase
 ```csharp
 public class WeatherForecastDto : IDataTransferObject<WeatherForecast>
 {
+    public int Id { get; set; }
+
     public DateOnly Date { get; set; }
 
     public int TemperatureC { get; set; }
@@ -43,6 +46,8 @@ public class WeatherForecastDto : IDataTransferObject<WeatherForecast>
 
 public class WeatherForecastDetailsDto : IDataTransferObject<WeatherForecast>
 {
+    public int Id { get; set; }
+
     public DateOnly Date { get; set; }
 
     public int TemperatureC { get; set; }
@@ -51,6 +56,75 @@ public class WeatherForecastDetailsDto : IDataTransferObject<WeatherForecast>
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 
     public string? Summary { get; set; }
+}
+```
+
+#### DTO mappings
+
+Define the select, insert, and update expressions for both DTO types. `SelectExpression` must be translatable by Entity Framework when it is used in a database query.
+
+```csharp
+public sealed class WeatherForecastExpressions :
+    IDtoMapping<WeatherForecast, WeatherForecastDto>,
+    IDtoMapping<WeatherForecast, WeatherForecastDetailsDto>
+{
+    Expression<Func<WeatherForecast, WeatherForecastDto>>
+        IDtoMapping<WeatherForecast, WeatherForecastDto, int>.SelectExpression =>
+        entity => new WeatherForecastDto
+        {
+            Id = entity.Id,
+            Date = entity.Date,
+            TemperatureC = entity.TemperatureC
+        };
+
+    Expression<Func<WeatherForecastDto, WeatherForecast>>
+        IDtoMapping<WeatherForecast, WeatherForecastDto, int>.InsertMappingToEntity =>
+        dto => new WeatherForecast
+        {
+            Date = dto.Date,
+            TemperatureC = dto.TemperatureC
+        };
+
+    Expression<Func<WeatherForecast, WeatherForecastDto, WeatherForecast>>
+        IDtoMapping<WeatherForecast, WeatherForecastDto, int>.UpdateMappingToEntity =>
+        (entity, dto) => new WeatherForecast
+        {
+            Id = entity.Id,
+            Active = entity.Active,
+            Date = dto.Date,
+            TemperatureC = dto.TemperatureC,
+            Summary = entity.Summary
+        };
+
+    Expression<Func<WeatherForecast, WeatherForecastDetailsDto>>
+        IDtoMapping<WeatherForecast, WeatherForecastDetailsDto, int>.SelectExpression =>
+        entity => new WeatherForecastDetailsDto
+        {
+            Id = entity.Id,
+            Date = entity.Date,
+            TemperatureC = entity.TemperatureC,
+            Summary = entity.Summary
+        };
+
+    Expression<Func<WeatherForecastDetailsDto, WeatherForecast>>
+        IDtoMapping<WeatherForecast, WeatherForecastDetailsDto, int>.InsertMappingToEntity =>
+        dto => new WeatherForecast
+        {
+            Date = dto.Date,
+            TemperatureC = dto.TemperatureC,
+            Summary = dto.Summary
+        };
+
+    Expression<Func<WeatherForecast, WeatherForecastDetailsDto, WeatherForecast>>
+        IDtoMapping<WeatherForecast, WeatherForecastDetailsDto, int>.UpdateMappingToEntity =>
+        (entity, dto) => new WeatherForecast
+        {
+            Id = entity.Id,
+            Active = entity.Active,
+            Date = dto.Date,
+            TemperatureC = dto.TemperatureC,
+            Summary = dto.Summary
+        };
 }
 ```
 
@@ -69,16 +143,16 @@ public interface IWeatherService : IEfCrudService<WeatherForecast, WeatherForeca
 #### implementations
 
 * implementations must inherit from `BaseCrudService` and implement just created interface
-* Provide `DbContext` and `IMapper` instance from DI to base
+* Provide the `DbContext` and `IDtoMappingRegistry` instances from DI to the base class
 
 ```csharp
 public class WeatherService : BaseCrudService<WeatherForecast, WeatherForecastDto, WeatherForecastDetailsDto>, IWeatherService
 {
     public WeatherService(
         AppDbContext dbContext,
-        IMapper mapper,
+        IDtoMappingRegistry mappingRegistry,
         ILogger<IWeatherService> logger
-        ) : base(dbContext, mapper)
+        ) : base(dbContext, mappingRegistry)
     {
 
     }
@@ -125,7 +199,9 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 * BaseCrud should be provided with BaseCrudOptions with a set of assemblies
 * Assemblies are used for
 
-> Assemblies scanned for Model-DTO mappings, custom mapping configuration, custom filter expressions
+> Assemblies are scanned for CRUD services, `IDtoMapping` implementations, and custom filter expressions.
+
+`AddBaseCrudService` validates the required list and details DTO mappings during startup. A missing or duplicate mapping throws an exception immediately.
 
 ```csharp
 

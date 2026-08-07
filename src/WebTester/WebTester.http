@@ -1,6 +1,33 @@
 @WebTester_HostAddress = http://localhost:5069
 
+### List (details)
 GET {{WebTester_HostAddress}}/weatherforecast/
 Accept: application/json
+
+###
+
+### Full update (IDtoMapping UpdateMappingToEntity)
+PUT {{WebTester_HostAddress}}/weatherforecast/1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "id": 1,
+  "date": "2026-08-01",
+  "temperatureC": 22,
+  "summary": "updated via PUT"
+}
+
+###
+
+### Patch update (PatchUpdateAsync / ExecuteUpdate)
+PATCH {{WebTester_HostAddress}}/weatherforecast/1
+Content-Type: application/json
+Accept: application/json
+
+{
+  "summary": "patched via PATCH",
+  "temperatureC": 18
+}
 
 ###

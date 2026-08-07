@@ -2,3 +2,5 @@
   href: introduction.md
 - name: Getting Started
   href: getting-started.md
+- name: Migrate to 2.0
+  href: migration-2.0.md

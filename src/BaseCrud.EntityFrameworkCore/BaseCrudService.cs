@@ -48,7 +48,6 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
@@ -69,7 +68,6 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
@@ -92,13 +90,14 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
             );
 
-        IAsyncEnumerable<TDtoFull> result = Mapper.ProjectTo<TDtoFull>(query).AsAsyncEnumerable();
+        var mapping = MappingRegistry.Get<TEntity, TDtoFull, TKey>();
+
+        IAsyncEnumerable<TDtoFull> result = query.Select(mapping.SelectExpression).AsAsyncEnumerable();
 
         return Ok(result);
     }
@@ -119,7 +118,6 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
@@ -146,14 +144,15 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
                 new CrudActionContext<TEntity, TKey, TUserKey>(
                     query,
                     userProfile,
-                    Mapper,
                     DataTableMetaData: null,
                     cancellationToken
                 )
             );
 
-        TDtoFull? result = await Mapper
-            .ProjectTo<TDtoFull>(query)
+        var mapping = MappingRegistry.Get<TEntity, TDtoFull, TKey>();
+
+        TDtoFull? result = await query
+            .Select(mapping.SelectExpression)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (result is null)
@@ -185,7 +184,9 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        var mapped = Mapper.Map<TEntity>(entity);
+        var mapping = MappingRegistry.Get<TEntity, TDtoFull, TKey>();
+
+        TEntity mapped = mapping.InsertToEntity(entity);
 
         ServiceResult validationResult = CheckInsertValidity(mapped.Id);
 
@@ -197,7 +198,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         if (!insertResult.IsSuccess)
             return ServiceResult.FromFailed(insertResult).ToType<TDtoFull>();
 
-        var dto = Mapper.Map<TDtoFull>(insertResult.Result);
+        TDtoFull dto = mapping.MapToDto(insertResult.Result!);
 
         return dto;
     }
@@ -227,21 +228,42 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default)
     {
-        var mapped = Mapper.Map<TEntity>(entity);
+        var mapping = MappingRegistry.Get<TEntity, TDtoFull, TKey>();
 
-        ServiceResult validationResult = await CheckUpdateValidityAsync(mapped.Id, cancellationToken);
+        TKey id = GetDtoId(entity);
+
+        ServiceResult validationResult = await CheckUpdateValidityAsync(id, cancellationToken);
 
         if (!validationResult.IsSuccess)
             return validationResult;
 
-        ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(mapped, cancellationToken);
+        TEntity? existing = await Set.FirstOrDefaultAsync(x => x.Id.Equals(id), cancellationToken);
+
+        if (existing is null)
+            return NotFound(new NotFoundServiceError());
+
+        TEntity updatedValues = mapping.UpdateEntity(existing, entity);
+
+        updatedValues.Id = id;
+
+        DbContext.Entry(existing).CurrentValues.SetValues(updatedValues);
+
+        ServiceResult<EntityEntry<TEntity>> updateResult = await HandleUpdateAsync(existing, cancellationToken);
 
         if (!updateResult.IsSuccess)
             return ServiceResult.FromFailed(updateResult).ToType<TDtoFull>();
 
         EntityEntry<TEntity> result = updateResult.Result!;
 
-        return Mapper.Map<TDtoFull>(result.Entity);
+        return mapping.MapToDto(result.Entity);
+    }
+
+    private static TKey GetDtoId(TDtoFull dto)
+    {
+        var prop = typeof(TDtoFull).GetProperty("Id")
+            ?? throw new InvalidOperationException(
+                $"{typeof(TDtoFull).Name} must have a public Id property of type {typeof(TKey).Name}.");
+        return (TKey)prop.GetValue(dto)!;
     }
 
     public async Task<ServiceResult<int>> PatchUpdateAsync(
@@ -277,7 +299,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
         TEntity entity = (await Set.FindAsync([id], cancellationToken))!;
 
-        return Mapper.Map<TDtoFull>(entity);
+        return MappingRegistry.Get<TEntity, TDtoFull, TKey>().MapToDto(entity);
     }
 
     public async Task<ServiceResult<int>> PatchUpdateAsync<TResult>(
@@ -315,7 +337,7 @@ public abstract partial class BaseCrudService<TEntity, TDto, TDtoFull, TKey, TUs
 
         TEntity entity = (await Set.FindAsync([id], cancellationToken))!;
 
-        return Mapper.Map<TDtoFull>(entity);
+        return MappingRegistry.Get<TEntity, TDtoFull, TKey>().MapToDto(entity);
     }
 
     public async Task<ServiceResult> DeactivateByIdAsync(

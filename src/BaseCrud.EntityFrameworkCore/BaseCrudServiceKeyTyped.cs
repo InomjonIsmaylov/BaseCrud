@@ -5,11 +5,11 @@
 /// </summary>
 public abstract class BaseCrudService<TEntity, TDto, TDtoFull, TUserKey>(
     DbContext dbContext,
-    IMapper mapper
+    IDtoMappingRegistry mappingRegistry
 )
     : BaseCrudService<TEntity, TDto, TDtoFull, int, TUserKey>(
         dbContext,
-        mapper
+        mappingRegistry
     ), ICrudService<TEntity, TDto, TDtoFull, TUserKey>
         where TEntity : class, IEntity
         where TDto : class, IDataTransferObject<TEntity>
@@ -21,11 +21,11 @@ public abstract class BaseCrudService<TEntity, TDto, TDtoFull, TUserKey>(
 /// </summary>
 public abstract class BaseCrudService<TEntity, TDto, TDtoFull>(
     DbContext dbContext,
-    IMapper mapper
+    IDtoMappingRegistry mappingRegistry
 )
     : BaseCrudService<TEntity, TDto, TDtoFull, int, int>(
         dbContext,
-        mapper
+        mappingRegistry
     ), ICrudService<TEntity, TDto, TDtoFull>
     where TEntity : class, IEntity
     where TDto : class, IDataTransferObject<TEntity>

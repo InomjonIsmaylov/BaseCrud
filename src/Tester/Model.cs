@@ -7,8 +7,9 @@ using BaseCrud.Expressions.Filter;
 namespace Tester;
 
 public sealed class ModelExpressions :
+    IDtoMapping<Model, ModelDto>,
+    IDtoMapping<Model, ModelDetailsDto>,
     IGlobalFilterExpression<Model>,
-    ISelectExpression<Model, ModelDto>,
     IFilterExpression<Model>
 {
     public Expression<Func<Model, bool>> GlobalSearchExpression(string strSearch)
@@ -16,11 +17,63 @@ public sealed class ModelExpressions :
         return x => x.Name!.Contains(strSearch) || x.Address!.Contains(strSearch) || x.Email!.Contains(strSearch) || x.Phone!.Contains(strSearch);
     }
 
-    public Expression<Func<Model, ModelDto>> SelectExpression =>
-        model => new ModelDto
+    Expression<Func<Model, ModelDto>> IDtoMapping<Model, ModelDto, int>.SelectExpression =>
+        model => new ModelDto { Id = model.Id, Name = model.Name, Age = model.Age };
+
+    Expression<Func<ModelDto, Model>> IDtoMapping<Model, ModelDto, int>.InsertMappingToEntity =>
+        dto => new Model { Name = dto.Name, Age = dto.Age };
+
+    Expression<Func<Model, ModelDto, Model>> IDtoMapping<Model, ModelDto, int>.UpdateMappingToEntity =>
+        (entity, dto) => new Model
+        {
+            Id = entity.Id,
+            Name = dto.Name,
+            Age = dto.Age,
+            Surname = entity.Surname,
+            Patronymic = entity.Patronymic,
+            Address = entity.Address,
+            Email = entity.Email,
+            Phone = entity.Phone,
+            Active = entity.Active
+        };
+
+    Expression<Func<Model, ModelDetailsDto>> IDtoMapping<Model, ModelDetailsDto, int>.SelectExpression =>
+        model => new ModelDetailsDto
         {
             Id = model.Id,
-            Name = model.Name
+            Name = model.Name,
+            Surname = model.Surname,
+            Patronymic = model.Patronymic,
+            Fullname = ((model.Surname ?? "") + " " + (model.Name ?? "") + " " + (model.Patronymic ?? "")).Trim(),
+            Age = model.Age.ToString(),
+            Address = model.Address,
+            Email = model.Email,
+            Phone = model.Phone
+        };
+
+    Expression<Func<ModelDetailsDto, Model>> IDtoMapping<Model, ModelDetailsDto, int>.InsertMappingToEntity =>
+        dto => new Model
+        {
+            Name = dto.Name,
+            Surname = dto.Surname,
+            Patronymic = dto.Patronymic,
+            Address = dto.Address,
+            Email = dto.Email,
+            Phone = dto.Phone
+        };
+
+    Expression<Func<Model, ModelDetailsDto, Model>> IDtoMapping<Model, ModelDetailsDto, int>.UpdateMappingToEntity =>
+        (entity, dto) => new Model
+        {
+            Id = entity.Id,
+            Name = dto.Name,
+            Surname = dto.Surname,
+            Patronymic = dto.Patronymic,
+            Address = dto.Address,
+            Email = dto.Email,
+            Phone = dto.Phone,
+            Age = entity.Age,
+            Active = entity.Active
         };
 
     public Func<FilterExpressions<Model>, FilterExpressions<Model>> FilterExpressions
