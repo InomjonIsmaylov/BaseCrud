@@ -9,7 +9,8 @@ public class AppDbContext(DbContextOptions options) : DbContext(options)
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        optionsBuilder.UseInMemoryDatabase("TestWebDb");
+        if (!optionsBuilder.IsConfigured)
+            optionsBuilder.UseSqlite("Data Source=WebTester.db");
 
         base.OnConfiguring(optionsBuilder);
     }
