@@ -1,6 +1,7 @@
 using BaseCrud.Abstractions.Entities;
 using BaseCrud.Errors;
 using BaseCrud.PrimeNg;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NSwag.Annotations;
@@ -56,22 +57,19 @@ public class WeatherForecastController(
     }
 
     /// <summary>
-    /// Partial update via EF <c>ExecuteUpdate</c> / <c>PatchUpdateAsync</c>
+    /// Partial update via RFC 6902 JSON Patch / <c>PatchUpdateAsync(JsonPatchDocument)</c>
     /// </summary>
     [HttpPatch("{id:int}")]
     [SwaggerResponse(StatusCodes.Status200OK, typeof(WeatherForecastDetailsDto))]
     [SwaggerResponse(StatusCodes.Status400BadRequest, typeof(ServiceError[]))]
     [SwaggerResponse(StatusCodes.Status404NotFound, typeof(ServiceError[]))]
-    public async Task<ActionResult<WeatherForecastDetailsDto?>> Patch(int id, [FromBody] WeatherForecastPatchRequest patch)
+    public async Task<ActionResult<WeatherForecastDetailsDto?>> Patch(
+        int id,
+        [FromBody] JsonPatchDocument<WeatherForecastDetailsDto> patch)
     {
         await EnsureInitAsync();
-        logger.LogInformation("Patching weather forecast {Id}", id);
-        return await FromServiceResult(service.PatchUpdateAsync(
-            id,
-            setters => setters
-                .SetProperty(x => x.Summary, patch.Summary)
-                .SetProperty(x => x.TemperatureC, patch.TemperatureC),
-            UserProfile));
+        logger.LogInformation("JSON Patch weather forecast {Id}", id);
+        return await FromServiceResult(service.PatchUpdateAsync(id, patch, UserProfile));
     }
 
     private static bool _init;
@@ -117,5 +115,3 @@ public class WeatherForecastController(
         _init = true;
     }
 }
-
-public record WeatherForecastPatchRequest(string Summary, int TemperatureC);
