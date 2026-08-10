@@ -20,14 +20,25 @@ Accept: application/json
 
 ###
 
-### Patch update (PatchUpdateAsync / ExecuteUpdate)
+### JSON Patch update (PatchUpdateAsync / JsonPatchDocument)
 PATCH {{WebTester_HostAddress}}/weatherforecast/1
-Content-Type: application/json
+Content-Type: application/json-patch+json
 Accept: application/json
 
-{
-  "summary": "patched via PATCH",
-  "temperatureC": 18
-}
+[
+  { "op": "replace", "path": "/summary", "value": "patched via JSON Patch" },
+  { "op": "replace", "path": "/temperatureC", "value": 18 }
+]
+
+###
+
+### JSON Patch reject Id mutation (expect 400)
+PATCH {{WebTester_HostAddress}}/weatherforecast/1
+Content-Type: application/json-patch+json
+Accept: application/json
+
+[
+  { "op": "replace", "path": "/id", "value": 999 }
+]
 
 ###

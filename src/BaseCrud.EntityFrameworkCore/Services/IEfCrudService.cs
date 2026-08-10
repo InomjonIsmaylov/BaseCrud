@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore.Query;
+﻿using Microsoft.AspNetCore.JsonPatch;
+using Microsoft.EntityFrameworkCore.Query;
 
 namespace BaseCrud.EntityFrameworkCore.Services;
 
@@ -94,6 +95,26 @@ public interface IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
         TKey id,
         Expression<Func<TEntity, TResult>> selector,
         Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
+        IUserProfile<TUserKey>? userProfile,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Apply an RFC 6902 JSON Patch to the <typeparamref name="TDtoFull"/> for the entity with
+    ///     primary key <paramref name="id"/>, then persist via <c>UpdateAsync</c>.
+    /// </summary>
+    /// <param name="id">Primary key of the entity to update.</param>
+    /// <param name="patch">JSON Patch document targeting <typeparamref name="TDtoFull"/> properties.</param>
+    /// <param name="userProfile"><see cref="IUserProfile{TUserKey}"/> or <see langword="null"/> when unauthorized.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Updated <typeparamref name="TDtoFull"/> wrapped in <see cref="ServiceResult{T}"/>.</returns>
+    /// <remarks>
+    ///     Supported ops: add, remove, replace, test. Ops targeting <c>/id</c> and move/copy are rejected.
+    /// </remarks>
+    /// <exception cref="ArgumentNullException"><paramref name="patch"/> is null.</exception>
+    /// <exception cref="OperationCanceledException" />
+    Task<ServiceResult<TDtoFull>> PatchUpdateAsync(
+        TKey id,
+        JsonPatchDocument<TDtoFull> patch,
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default);
 }

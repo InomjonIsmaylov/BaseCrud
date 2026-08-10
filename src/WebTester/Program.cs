@@ -6,11 +6,13 @@ using WebTester.DataBase;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers().AddJsonOptions(o =>
-{
-    o.JsonSerializerOptions.Converters.Add(new FilterMetadataConverter());
-    o.JsonSerializerOptions.Converters.Add(new PrimeTableMetaConverter());
-});
+builder.Services.AddControllers()
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new FilterMetadataConverter());
+        o.JsonSerializerOptions.Converters.Add(new PrimeTableMetaConverter());
+    })
+    .AddNewtonsoftJson();
 
 builder.Services.AddOpenApiDocument();
 
