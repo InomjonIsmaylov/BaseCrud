@@ -1,16 +1,14 @@
 <Project>
 
   <!--
-    Every shipped library packs on build, so a plain `dotnet build` of the solution
-    always produces the full, version-consistent set of five packages.
+    Packaging is driven by an explicit `dotnet pack -c Release`, not by
+    GeneratePackageOnBuild. Setting GeneratePackageOnBuild here would make pack run
+    during the build, before the assembly is written to bin/Release, which fails with
+    NU5026; it would also slow every inner-loop build and emit Debug-configuration
+    packages nobody ships.
 
-    This lives in Directory.Build.targets rather than Directory.Build.props because
-    .props is evaluated before the project body: IsPackable is not yet visible there,
-    and unconditionally setting GeneratePackageOnBuild would warn on the sample apps
-    that opt out via <IsPackable>false</IsPackable>.
+    The five shipped libraries are packed by solution-wide pack; the two sample apps
+    opt out with <IsPackable>false</IsPackable>.
   -->
-  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-  </PropertyGroup>
 
 </Project>
