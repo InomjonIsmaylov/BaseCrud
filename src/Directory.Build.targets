@@ -1,0 +1,31 @@
+<Project>
+
+  <!--
+    Packaging is driven by an explicit `dotnet pack -c Release`, not by
+    GeneratePackageOnBuild. Setting GeneratePackageOnBuild here would make pack run
+    during the build, before the assembly is written to bin/Release, which fails with
+    NU5026; it would also slow every inner-loop build and emit Debug-configuration
+    packages nobody ships.
+
+    The five shipped libraries are packed by solution-wide pack; the two sample apps
+    opt out with <IsPackable>false</IsPackable>.
+  -->
+
+  <!--
+    Every shipped package embeds the repository README. This lives in
+    Directory.Build.targets rather than Directory.Build.props because IsPackable is
+    not yet visible during .props evaluation, and adding the None item unconditionally
+    would attach it to the non-packable sample apps too.
+
+    The path is anchored with MSBuildThisFileDirectory so it resolves against this
+    file's location (src/) rather than each individual project directory.
+  -->
+  <PropertyGroup Condition="'$(IsPackable)' != 'false'">
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsPackable)' != 'false'">
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
+</Project>

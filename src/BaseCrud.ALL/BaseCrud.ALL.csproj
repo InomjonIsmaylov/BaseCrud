@@ -1,12 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-	<Version>2.0.0</Version>
-	<TargetFramework>net8.0</TargetFramework>
+	<TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
 	<Nullable>enable</Nullable>
-	<PackageReadmeFile>README.md</PackageReadmeFile>
-	<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +11,6 @@
     <ProjectReference Include="..\BaseCrud.EntityFrameworkCore\BaseCrud.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\BaseCrud.PrimeNg\BaseCrud.PrimeNg.csproj" />
     <ProjectReference Include="..\BaseCrud\BaseCrud.csproj" />
-    <None Include="../../README.md" Pack="true" PackagePath="" />
   </ItemGroup>
 
 </Project>
