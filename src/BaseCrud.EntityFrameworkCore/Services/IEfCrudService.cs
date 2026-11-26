@@ -25,7 +25,7 @@ public interface IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     /// <exception cref="OperationCanceledException" />
     Task<ServiceResult<int>> PatchUpdateAsync(
         Expression<Func<TEntity, bool>> predicate,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
+        Action<UpdateSettersBuilder<TEntity>> setPropertyCalls,
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default);
 
@@ -42,7 +42,7 @@ public interface IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     /// <exception cref="OperationCanceledException" />
     Task<ServiceResult<TDtoFull>> PatchUpdateAsync(
         TKey id,
-        Expression<Func<SetPropertyCalls<TEntity>, SetPropertyCalls<TEntity>>> setPropertyCalls,
+        Action<UpdateSettersBuilder<TEntity>> setPropertyCalls,
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default);
 
@@ -68,7 +68,7 @@ public interface IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     Task<ServiceResult<int>> PatchUpdateAsync<TResult>(
         Expression<Func<TEntity, bool>> predicate,
         Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
+        Action<UpdateSettersBuilder<TResult>> setPropertyCalls,
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default);
 
@@ -94,7 +94,7 @@ public interface IEfCrudService<TEntity, TDto, TDtoFull, TKey, TUserKey>
     Task<ServiceResult<TDtoFull>> PatchUpdateAsync<TResult>(
         TKey id,
         Expression<Func<TEntity, TResult>> selector,
-        Expression<Func<SetPropertyCalls<TResult>, SetPropertyCalls<TResult>>> setPropertyCalls,
+        Action<UpdateSettersBuilder<TResult>> setPropertyCalls,
         IUserProfile<TUserKey>? userProfile,
         CancellationToken cancellationToken = default);
 

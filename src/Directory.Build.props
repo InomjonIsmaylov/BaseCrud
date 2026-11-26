@@ -1,0 +1,18 @@
+<Project>
+
+  <!--
+    Package versioning policy: the major version tracks the targeted .NET major
+    version (net10.0 -> 10.x), because BaseCrud.EntityFrameworkCore's public API is
+    tied to EF Core's major version and a single-targeted assembly cannot straddle
+    two of them.
+
+    Consequences:
+      - Breaking changes ship on the annual .NET boundary, not mid-cycle.
+      - The patch component is our own counter; it does NOT mirror the EF Core
+        patch version, so an EF Core patch bump is not a release of these packages.
+  -->
+  <PropertyGroup>
+    <Version>10.0.0</Version>
+  </PropertyGroup>
+
+</Project>
